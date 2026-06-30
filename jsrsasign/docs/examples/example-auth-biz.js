@@ -1,75 +1,74 @@
-// Example: register, sign-in, and signed user input (Cocos2d 1.5 style).
-// Load order: jsrsasign-all-min.js → CryptoManager.js → IdentityManager.js → this file
+// example-auth-biz.js — register, sign-in, signed input (CEngine2d 1.5, ES5).
+// Load order: jsrsasign-all-min.js → CryptoManager → IdentityManager → NetworkManager → this file
+// For full HTTPS flows see example-https-biz.js and 06-https-networking.md
 
-var AuthScene = {
+var BizAuth = {
   init: function() {
     IdentityManager.init();
   },
 
-  // Server sends nonce on connect
   onServerHello: function(serverNonceHex) {
     IdentityManager.onServerHello(serverNonceHex);
     if (typeof cc !== "undefined") {
-      cc.log("[auth] server nonce received");
+      cc.log("[BizAuth] server nonce received");
     }
   },
 
   onRegisterTap: function(username, password) {
     var result = IdentityManager.register(username, password);
     if (!result) {
-      AuthScene._log("register failed");
+      BizAuth._log("register failed");
       return null;
     }
 
-    AuthScene._log("register ok, keyId: " + result.record.keyId.substring(0, 16) + "...");
-    AuthScene.sendToServer(result.request);
+    BizAuth._log("register ok, keyId: " + result.record.keyId.substring(0, 16) + "...");
+    BizAuth.sendToServer(result.request);
     return result.record;
   },
 
   onLoginTap: function(username, password) {
-    // Assume server returned challenge after password check
     IdentityManager.onLoginChallenge("challenge_from_server");
 
     var result = IdentityManager.signIn(username, password);
     if (!result) {
-      AuthScene._log("sign-in failed");
+      BizAuth._log("sign-in failed");
       return null;
     }
 
-    AuthScene._log("sign-in sig: " + result.request.signatureHex.substring(0, 16) + "...");
-    AuthScene.sendToServer(result.request);
+    BizAuth._log("sign-in sig: " + result.request.signatureHex.substring(0, 16) + "...");
+    BizAuth.sendToServer(result.request);
     return result;
   },
 
   onLogoutTap: function() {
     IdentityManager.clearSession();
-    AuthScene._log("session cleared");
+    BizAuth._log("session cleared");
   },
 
-  onSendChat: function(username, text) {
-    // Requires prior signIn (unlocked session)
+  onSendInputTap: function(username, text) {
     var packet = IdentityManager.signUserInput(username, text);
     if (!packet) {
-      AuthScene._log("sign input failed");
+      BizAuth._log("sign input failed");
       return null;
     }
-    AuthScene.sendToServer(packet);
+    BizAuth.sendToServer(packet);
     return packet;
   },
 
-  // Mix touch events into entropy pool during gameplay
   onTouchMoved: function(x, y) {
     CryptoManager.addTouchEntropy(x, y);
   },
 
   sendToServer: function(payload) {
-    // Wire to your HTTP / WebSocket layer:
-    // var body = JSON.stringify(payload);
+    // Prefer BizApiClient / NetworkManager — see example-https-biz.js
+    NetworkManager.post("/api/action", payload, function(res) {
+      BizAuth._log(res.ok ? "sent ok" : "send failed: " + res.error);
+    });
   },
 
   _log: function(msg) {
     if (typeof cc !== "undefined") {
-      cc.log("[AuthScene] " + msg);
+      cc.log("[BizAuth] " + msg);
     }
   }
 };

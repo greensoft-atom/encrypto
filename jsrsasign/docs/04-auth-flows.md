@@ -20,7 +20,7 @@ End-to-end flows for **user registration**, **login**, and **signed user actions
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant G as Game / IdentityManager
+    participant G as Biz / IdentityManager
     participant S as Server
 
     U->>G: username + password
@@ -91,7 +91,7 @@ saveUser(req.username, req.passwordHash, req.pubHex, req.curve);
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant G as Game / IdentityManager
+    participant G as Biz / IdentityManager
     participant S as Server
 
     U->>G: username + password
@@ -132,11 +132,11 @@ signin|{username}|{serverChallenge}|{timestamp}|{serverNonce}
 
 ## Signed user action flow
 
-After login, sign gameplay actions (chat, commands, trades):
+After login, sign biz actions (chat, commands, trades):
 
 ```mermaid
 sequenceDiagram
-    participant G as Game
+    participant G as Biz
     participant S as Server
 
     G->>G: canonical = "input|{userText}"
@@ -250,11 +250,9 @@ Plaintext `privHex` is stored **only** when `identityToRecord` is called without
 
 ## Example scene integration
 
-See [examples/example-auth-scene.js](./examples/example-auth-scene.js) for Cocos2d-style hooks:
+See [examples/example-https-biz.js](./examples/example-https-biz.js) for the **full HTTPS + crypto** flow, or [examples/example-auth-biz.js](./examples/example-auth-biz.js) for crypto-only patterns.
 
-- `onServerHello` → seed RNG  
-- `register` / `signIn` / `signInput`  
-- `sendToServer` stub for your HTTP/WebSocket layer  
+HTTPS guide: [06-https-networking.md](./06-https-networking.md)
 
 ---
 

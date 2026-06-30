@@ -40,7 +40,7 @@ Client sends `passwordHash = sha256(username + "|" + password)` in register payl
 | **EC P-384** | **~192 bits** |
 | RSA-7680 | ~192 bits |
 
-ECC384 gives high security with compact keys — good for mobile games.
+ECC384 gives high security with compact keys — good for mobile apps.
 
 ---
 
@@ -70,7 +70,7 @@ From the bundled [README](../README.md):
 - **CVE fixes** — stay on maintained fork or pinned version; review [security advisories](https://github.com/kjur/jsrsasign/security).
 - **11.0.0+** — RSA PKCS#1 v1.5 **encryption/decryption removed** (Marvin attack). **Signatures still supported.**
 
-For a long-lived Android game:
+For a long-lived Android app:
 
 1. Pin the exact `jsrsasign-all-min.js` version you ship.
 2. Hide it behind `CryptoManager` so you can swap libraries later.
@@ -80,7 +80,7 @@ For a long-lived Android game:
 
 ## Random number generation
 
-SpiderMonkey in Cocos2d 1.5 may lack `crypto.getRandomValues`. jsrsasign uses its internal PRNG (`KJUR.crypto.Util.getRandomHexOfNbytes`).
+SpiderMonkey in CEngine2d 1.5 may lack `crypto.getRandomValues`. jsrsasign uses its internal PRNG (`KJUR.crypto.Util.getRandomHexOfNbytes`).
 
 **Before key generation:**
 

@@ -1,13 +1,18 @@
 # 03 — Crypto Architecture
 
-Design the crypto subsystem **before** scattering `jsrsasign` calls through game code. This document turns the discussion in [discussion_02.md](./discussion_02.md) into a concrete layout.
+Design the crypto subsystem **before** scattering `jsrsasign` calls through biz code. This document turns the discussion in [discussion_02.md](./discussion_02.md) into a concrete layout.
 
 ---
 
 ## Layer model
 
 ```text
-Game Logic (scenes, UI, gameplay)
+Biz Logic (views, UI, workflows)
+        │
+        ▼
+BizApiClient            ← HTTPS + auth orchestration (optional)
+        │
+        ├── NetworkManager     ← XMLHttpRequest, TLS via CEngine2d runtime
         │
         ▼
 IdentityManager          ← users, sessions, registration, login
@@ -23,10 +28,10 @@ jsrsasign-all-min.js     ← implementation detail (hidden)
 
 | Layer | Knows about | Must NOT know about |
 |-------|-------------|---------------------|
-| Game Logic | `IdentityManager` public API | PEM format, curves, jsrsasign |
+| Biz Logic | `IdentityManager` public API | PEM format, curves, jsrsasign |
 | IdentityManager | Users, key storage, auth payloads | BigInteger, ASN.1 |
 | CryptoManager | Algorithms, keys as opaque handles | Usernames, sessions |
-| jsrsasign | Everything crypto | Your game |
+| jsrsasign | Everything crypto | Your biz app |
 
 > **Cryptography is not authentication.**  
 > Signing proves key possession and message integrity. Sessions, rate limits, and account state belong in `IdentityManager` / server logic.
@@ -42,6 +47,9 @@ src/crypto/
     CryptoManager.js           ← public crypto API (facade)
 
     IdentityManager.js         ← registration / login / signed input
+
+    NetworkManager.js          ← HTTPS via XMLHttpRequest (no Java code)
+    BizApiClient.js           ← register / login / action API client
 
     # Optional future split (when CryptoManager grows):
     hash/Hash.js
@@ -111,7 +119,7 @@ Implementation: [examples/CryptoManager.js](./examples/CryptoManager.js).
 
 ## Key handle format
 
-Internal key handles are plain objects — no jsrsasign types leak to game code:
+Internal key handles are plain objects — no jsrsasign types leak to biz code:
 
 ```javascript
 // RSA handle
@@ -135,7 +143,7 @@ Internal key handles are plain objects — no jsrsasign types leak to game code:
 }
 ```
 
-Game code passes handles returned by `generateECC` / `loadPublicKey` — never constructs them manually.
+Biz code passes handles returned by `generateECC` / `loadPublicKey` — never constructs them manually.
 
 ---
 
@@ -209,7 +217,7 @@ On device, store encrypted private material in `cc.sys.localStorage` or native s
 
 ---
 
-## Use-case matrix (game)
+## Use-case matrix (biz app)
 
 | Purpose | Recommended |
 |---------|-------------|
@@ -228,7 +236,7 @@ Do **not** RSA-encrypt large save files.
 ```text
 Random AES-256 key
     │
-    ├─► AES encrypt game data
+    ├─► AES encrypt biz data
     │
     └─► RSA/EC sign hash of ciphertext (or sign manifest)
 ```
@@ -239,29 +247,29 @@ jsrsasign includes AES via CryptoJS inside the bundle; add an AES wrapper to Cry
 
 ## Testing strategy
 
-1. **Smoke test** — `node docs/examples/test-smoke.js` (no Cocos2d required)
+1. **Smoke test** — `node docs/examples/test-smoke.js` (no CEngine2d required)
 2. **Unit tests** — canonical string + sign + verify roundtrips
 3. **Integration** — register → login → sign action against mock server
 4. **Never skip** — tampered message must fail verify
 
 ---
 
-## Migration from jsbn/CocosSec
+## Migration from jsbn/CEngineSec
 
-This repo also contains a lighter **jsbn** stack (`jsbn/cocos2d-sec.js`). Comparison:
+This repo also contains a lighter **jsbn** stack (`jsbn/cengine-sec.js`). Comparison:
 
-| | jsbn/CocosSec | jsrsasign/CryptoManager |
+| | jsbn/CEngineSec | jsrsasign/CryptoManager |
 |--|---------------|-------------------------|
 | Size | Smaller (many files) | One minified bundle |
 | PEM / X.509 | Limited | Full KEYUTIL support |
 | Algorithms | RSA + P-384 ECDSA | RSA, EC, DSA, CMS, JWT, … |
 | API style | Custom hex keys | PEM + handles |
 
-Pick one stack per project; do not mix both in the same game binary without strong reason.
+Pick one stack per project; do not mix both in the same app binary without strong reason.
 
 ---
 
 ## Next
 
 - [04-auth-flows.md](./04-auth-flows.md) — registration and login sequences
-- [examples/COCOS2D.md](./examples/COCOS2D.md) — wire it into Cocos2d 1.5
+- [examples/CENGINE.md](./examples/CENGINE.md) — wire it into CEngine2d 1.5

@@ -1,6 +1,6 @@
-# jsrsasign for Cocos2d-JS — Documentation Index
+# jsrsasign for CEngine2d — Documentation Index
 
-Practical guides and copy-paste-ready code for using **jsrsasign** in a legacy Cocos2d 1.5 / SpiderMonkey game runtime (no Node.js, no WebCrypto, no ES modules).
+Practical guides and copy-paste-ready code for using **jsrsasign** in a legacy CEngine2d 1.5 / SpiderMonkey runtime (no Node.js, no WebCrypto, no ES modules).
 
 These docs synthesize the architecture discussions in [discussion_01.md](./discussion_01.md) and [discussion_02.md](./discussion_02.md) into actionable material.
 
@@ -12,9 +12,10 @@ These docs synthesize the architecture discussions in [discussion_01.md](./discu
 |---|----------|--------------|
 | 1 | [01-getting-started.md](./01-getting-started.md) | Runtime constraints, how to load the library, first hash/sign/verify |
 | 2 | [02-jsrsasign-core-api.md](./02-jsrsasign-core-api.md) | Direct jsrsasign API cheat sheet with minimal examples |
-| 3 | [03-architecture.md](./03-architecture.md) | Layered design: Game → IdentityManager → CryptoManager → jsrsasign |
+| 3 | [03-architecture.md](./03-architecture.md) | Layered design: Biz → IdentityManager → CryptoManager → jsrsasign |
 | 4 | [04-auth-flows.md](./04-auth-flows.md) | Registration, login, signed user actions — sequence diagrams and payloads |
 | 5 | [05-algorithms-and-security.md](./05-algorithms-and-security.md) | Algorithm choices, performance, pitfalls, library EOL notice |
+| 6 | [06-https-networking.md](./06-https-networking.md) | **HTTPS via XMLHttpRequest** — NetworkManager, BizApiClient, full auth flows |
 | — | [REVIEW.md](./REVIEW.md) | Review findings, fixes applied, known limitations |
 
 ---
@@ -25,11 +26,16 @@ All files are **ES5-compatible** (no `let`, `const`, arrow functions, or `requir
 
 ```
 docs/examples/
-├── CryptoManager.js       ← Public crypto facade (wraps jsrsasign)
-├── IdentityManager.js     ← User registration / login / signed input
-├── example-auth-scene.js  ← Cocos2d scene integration pattern
-├── COCOS2D.md             ← Script load order and project layout
-└── test-smoke.js          ← Node smoke test (validates CryptoManager)
+├── CryptoManager.js         ← Public crypto facade (wraps jsrsasign)
+├── IdentityManager.js       ← User registration / login / signed input
+├── NetworkManager.js        ← HTTPS client (XMLHttpRequest, no Java code)
+├── BizApiClient.js          ← Register / login / actions over HTTPS
+├── example-auth-biz.js      ← Crypto-only biz integration pattern
+├── example-https-biz.js     ← Full HTTPS + crypto biz integration
+├── network-probe.js         ← Minimal HTTPS connectivity test
+├── CENGINE.md               ← Script load order and project layout
+├── test-smoke.js            ← Node smoke test (CryptoManager)
+└── test-network-smoke.js    ← Node smoke test (NetworkManager mock)
 ```
 
 ### Quick start (Node smoke test)
@@ -38,13 +44,15 @@ From the repo root:
 
 ```bash
 node jsrsasign/docs/examples/test-smoke.js
+node jsrsasign/docs/examples/test-network-smoke.js
 ```
 
-### Quick start (Cocos2d)
+### Quick start (CEngine2d)
 
-1. Copy `jsrsasign/jsrsasign-all-min.js` into your game `src/crypto/` folder.
-2. Copy `docs/examples/CryptoManager.js` and `IdentityManager.js` beside it.
-3. Follow [examples/COCOS2D.md](./examples/COCOS2D.md) for load order.
+1. Copy `jsrsasign/jsrsasign-all-min.js` into your project `src/crypto/` folder.
+2. Copy `docs/examples/CryptoManager.js`, `IdentityManager.js`, `NetworkManager.js`, and `BizApiClient.js`.
+3. Follow [examples/CENGINE.md](./examples/CENGINE.md) for load order.
+4. Read [06-https-networking.md](./06-https-networking.md) for HTTPS register/login flows.
 
 ---
 
@@ -53,7 +61,7 @@ node jsrsasign/docs/examples/test-smoke.js
 | Use case | Algorithm |
 |----------|-----------|
 | User identity key pair | **EC P-384** (`secp384r1`) |
-| Sign game actions / auth payloads | **SHA384withECDSA** |
+| Sign biz actions / auth payloads | **SHA384withECDSA** |
 | Verify server config / assets | **RSA-2048** or **EC P-384** |
 | Integrity hashing | **SHA-256** or **SHA-384** |
 | Password storage (server) | Salt + iterated SHA-256 behind `Password` service* |
@@ -68,7 +76,7 @@ node jsrsasign/docs/examples/test-smoke.js
 
 - `CryptoManager` — keys, hashes, signatures, encryption only.
 - `IdentityManager` — users, sessions, registration, login.
-- Game logic never imports jsrsasign directly.
+- Biz logic never imports jsrsasign directly.
 
 ---
 

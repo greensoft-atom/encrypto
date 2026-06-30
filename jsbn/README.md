@@ -2,16 +2,16 @@
 
 The **jsbn** library is a fast, portable implementation of large-number math in pure JavaScript, enabling public-key cryptography and other applications on desktop and mobile browsers.
 
-## Cocos2d 1.5 Android (this fork)
+## CEngine 1.5 Android (this fork)
 
-This fork is adapted for **embedded JavaScript runtimes** (Cocos2d-x, SpiderMonkey, JavaScriptCore) with **no Node.js and no browser**:
+This fork is adapted for **embedded JavaScript runtimes** (CEngine-x, SpiderMonkey, JavaScriptCore) with **no Node.js and no browser**:
 
 - Removed hard dependencies on `navigator`, `window`, and `alert()`
 - Added **secp384r1** (NIST P-384) curve parameters
-- Added **`cocos2d-sec.js`** — high-level API for RSA-2048 and ECDH P-384
-- Added **`COCOS2D.md`** — full integration guide for Cocos2d 1.5 Android
+- Added **`cengine-sec.js`** — high-level API for RSA-2048 and ECDH P-384
+- Added **`CEngine.md`** — full integration guide for CEngine 1.5 Android
 
-**Start here:** [COCOS2D.md](COCOS2D.md)
+**Start here:** [CEngine.md](CEngine.md)
 
 ## Demos
 
@@ -54,7 +54,7 @@ This will print `b60c`.
 | `sec.js` | Standard elliptic curve parameters (includes **secp384r1**). |
 | `sha256.js` | SHA-256 hash (`hex_sha256`). |
 | `ecdsa.js` | ECDSA sign/verify for secp384r1. |
-| `cocos2d-sec.js` | High-level API: RSA-2048, ECDH, ECDSA, register/sign-in helpers. |
+| `cengine-sec.js` | High-level API: RSA-2048, ECDH, ECDSA, register/sign-in helpers. |
 
 ### Utilities
 
@@ -126,13 +126,13 @@ The speed tables contain detailed timing information for jsbn performing public-
 
 ## History
 
-### Fork (cocos2d-sec)
+### Fork (cengine-sec)
 
 - Runtime-safe: no required browser globals; `jsbn_error()` hook instead of `alert()`
 - Added `secp384r1` curve and `CocosSec` API
 - Deterministic `seedRandom(bytes)` for testing; `seedFromEnvironment()` for production
 - Verified with `test-smoke.js` (sandbox, no browser globals)
-- See [COCOS2D.md](COCOS2D.md) for usage
+- See [CEngine.md](CEngine.md) for usage
 
 ### Version 1.4 (7/1/2013)
 

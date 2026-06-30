@@ -133,8 +133,8 @@ var r1 = CM.randomHex(16);
 CM.seedFromEnvironment("00112233445566778899aabbccddeeff");
 var r2 = CM.randomHex(16);
 assert(typeof r1 === "string" && r1.length === 32, "random hex length");
-var b64 = CM.base64Encode("cocos2d-sec");
-assert(CM.base64Decode(b64) === "cocos2d-sec", "base64 roundtrip");
+var b64 = CM.base64Encode("cengine-sec");
+assert(CM.base64Decode(b64) === "cengine-sec", "base64 roundtrip");
 console.log("OK");
 
 console.log("");

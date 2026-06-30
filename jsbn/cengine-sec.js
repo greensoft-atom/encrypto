@@ -1,8 +1,8 @@
-// Cocos2d-friendly crypto helpers for RSA-2048, ECDH/ECDSA (secp384r1), and user auth.
+// CEngine2d-friendly crypto helpers for RSA-2048, ECDH/ECDSA (secp384r1), and user auth.
 // Requires: jsbn.js, jsbn2.js, prng4.js, rng.js, sha256.js, rsa.js, rsa2.js, ec.js, sec.js, ecdsa.js
 // No Node.js or browser globals required.
 
-var CocosSec = {
+var CEngineSec = {
   RSA_BITS: 2048,
   RSA_EXP: "10001",
   ECDH_CURVE: "secp384r1",
@@ -27,17 +27,17 @@ var CocosSec = {
   // Call from cc.eventManager touch handler to mix user input into entropy pool.
   addTouchEntropy: function(x, y) {
     var t = new Date().getTime();
-    CocosSec._touchEntropy.push(
+    CEngineSec._touchEntropy.push(
       x & 255, (x >> 8) & 255, (x >> 16) & 255,
       y & 255, (y >> 8) & 255, (y >> 16) & 255,
       t & 255, (t >> 8) & 255, (t >> 16) & 255, (t >> 24) & 255
     );
-    if(CocosSec._touchEntropy.length > 64) {
-      CocosSec._touchEntropy = CocosSec._touchEntropy.slice(-64);
+    if(CEngineSec._touchEntropy.length > 64) {
+      CEngineSec._touchEntropy = CEngineSec._touchEntropy.slice(-64);
     }
   },
 
-  // Build a byte array from sources available in plain Cocos2d JS (no native bridge).
+  // Build a byte array from sources available in plain CEngine2d JS (no native bridge).
   gatherEntropyBytes: function(count, extraBytes) {
     var bytes = [];
     var i, j, t, r, s;
@@ -70,9 +70,9 @@ var CocosSec = {
 
   // Convenience: gather JS-visible entropy and seed the PRNG in one call.
   seedFromEnvironment: function(extraBytes) {
-    var mixed = CocosSec._touchEntropy.concat(extraBytes || []);
-    var bytes = CocosSec.gatherEntropyBytes(32, mixed);
-    CocosSec.seedRandom(bytes);
+    var mixed = CEngineSec._touchEntropy.concat(extraBytes || []);
+    var bytes = CEngineSec.gatherEntropyBytes(32, mixed);
+    CEngineSec.seedRandom(bytes);
     rng_seed_time();
     return bytes;
   },
@@ -102,7 +102,7 @@ var CocosSec = {
 
   rsaGenerateKey: function() {
     var rsa = new RSAKey();
-    rsa.generate(CocosSec.RSA_BITS, CocosSec.RSA_EXP);
+    rsa.generate(CEngineSec.RSA_BITS, CEngineSec.RSA_EXP);
     return {
       n: rsa.n.toString(16),
       e: rsa.e.toString(16),
@@ -129,13 +129,13 @@ var CocosSec = {
   },
 
   rsaEncrypt: function(nHex, eHex, plaintext) {
-    var rsa = CocosSec.rsaCreatePublic(nHex, eHex);
+    var rsa = CEngineSec.rsaCreatePublic(nHex, eHex);
     if(rsa == null) return null;
     return rsa.encrypt(plaintext);
   },
 
   rsaDecrypt: function(key, ciphertextHex) {
-    var rsa = CocosSec.rsaCreatePrivate(key);
+    var rsa = CEngineSec.rsaCreatePrivate(key);
     if(rsa == null) return null;
     return rsa.decrypt(ciphertextHex);
   },
@@ -143,7 +143,7 @@ var CocosSec = {
   // --- ECDH secp384r1 ---
 
   _getCurveParams: function(curveName) {
-    var name = curveName || CocosSec.ECDH_CURVE;
+    var name = curveName || CEngineSec.ECDH_CURVE;
     return getSECCurveByName(name);
   },
 
@@ -154,13 +154,13 @@ var CocosSec = {
   },
 
   ecdhGenerateKeyPair: function(curveName) {
-    var params = CocosSec._getCurveParams(curveName);
+    var params = CEngineSec._getCurveParams(curveName);
     if(params == null) return null;
     var curve = params.getCurve();
     var G = params.getG();
     var n = params.getN();
     var rng = new SecureRandom();
-    var priv = CocosSec._randomScalar(n, rng);
+    var priv = CEngineSec._randomScalar(n, rng);
     var pub = G.multiply(priv);
     return {
       privHex: priv.toString(16),
@@ -169,7 +169,7 @@ var CocosSec = {
   },
 
   ecdhComputeSecret: function(privHex, peerPubHex, curveName) {
-    var params = CocosSec._getCurveParams(curveName);
+    var params = CEngineSec._getCurveParams(curveName);
     if(params == null) return null;
     var curve = params.getCurve();
     var peer = curve.decodePointHex(peerPubHex);
@@ -187,9 +187,9 @@ var CocosSec = {
 
   // Shared secret as raw X coordinate bytes (common for KDF input).
   ecdhSharedSecretX: function(privHex, peerPubHex, curveName) {
-    var s = CocosSec.ecdhComputeSecret(privHex, peerPubHex, curveName);
+    var s = CEngineSec.ecdhComputeSecret(privHex, peerPubHex, curveName);
     if(s == null) return null;
-    var params = CocosSec._getCurveParams(curveName);
+    var params = CEngineSec._getCurveParams(curveName);
     var qLen = params.getCurve().getQ().toString(16).length;
     if((qLen % 2) != 0) qLen++;
     while(s.xHex.length < qLen) s.xHex = "0" + s.xHex;
@@ -209,29 +209,29 @@ var CocosSec = {
   // --- ECDSA P-384 (sign / verify user input and auth payloads) ---
 
   ecdsaSign: function(privHex, message, curveName) {
-    var hashHex = CocosSec.sha256(message);
-    return ecdsaSignHash(hashHex, privHex, curveName || CocosSec.ECDH_CURVE);
+    var hashHex = CEngineSec.sha256(message);
+    return ecdsaSignHash(hashHex, privHex, curveName || CEngineSec.ECDH_CURVE);
   },
 
   ecdsaVerify: function(pubHex, message, signature, curveName) {
-    var hashHex = CocosSec.sha256(message);
+    var hashHex = CEngineSec.sha256(message);
     var sig = signature;
     if(typeof signature == "string") {
-      sig = ecdsaSigFromHex(signature, curveName || CocosSec.ECDH_CURVE);
+      sig = ecdsaSigFromHex(signature, curveName || CEngineSec.ECDH_CURVE);
     }
     if(sig == null) return false;
-    return ecdsaVerifyHash(hashHex, sig, pubHex, curveName || CocosSec.ECDH_CURVE);
+    return ecdsaVerifyHash(hashHex, sig, pubHex, curveName || CEngineSec.ECDH_CURVE);
   },
 
   // --- User identity (one key pair for ECDH + ECDSA) ---
 
   createUserIdentity: function(curveName) {
-    var kp = CocosSec.ecdhGenerateKeyPair(curveName);
+    var kp = CEngineSec.ecdhGenerateKeyPair(curveName);
     if(kp == null) return null;
     return {
       privHex: kp.privHex,
       pubHex: kp.pubHex,
-      curve: curveName || CocosSec.ECDH_CURVE,
+      curve: curveName || CEngineSec.ECDH_CURVE,
       createdAt: new Date().getTime()
     };
   },
@@ -241,7 +241,7 @@ var CocosSec = {
       username: String(username),
       privHex: identity.privHex,
       pubHex: identity.pubHex,
-      curve: identity.curve || CocosSec.ECDH_CURVE,
+      curve: identity.curve || CEngineSec.ECDH_CURVE,
       createdAt: identity.createdAt || new Date().getTime()
     };
   },
@@ -276,12 +276,12 @@ var CocosSec = {
 
   buildRegisterRequest: function(username, password, identity, serverNonceHex) {
     if(identity == null || identity.privHex == null || identity.pubHex == null) return null;
-    var passwordHash = CocosSec.hashPassword(username, password);
+    var passwordHash = CEngineSec.hashPassword(username, password);
     var timestamp = new Date().getTime();
-    var canonical = CocosSec._authCanonical([
+    var canonical = CEngineSec._authCanonical([
       "register", username, passwordHash, identity.pubHex, timestamp, serverNonceHex
     ]);
-    var sig = CocosSec.ecdsaSign(identity.privHex, canonical);
+    var sig = CEngineSec.ecdsaSign(identity.privHex, canonical);
     if(sig == null) return null;
     return {
       action: "register",
@@ -297,7 +297,7 @@ var CocosSec = {
 
   verifyRegisterRequest: function(request) {
     if(request == null || request.action != "register") return false;
-    var canonical = CocosSec._authCanonical([
+    var canonical = CEngineSec._authCanonical([
       "register", request.username, request.passwordHash,
       request.pubHex, request.timestamp, request.serverNonce
     ]);
@@ -305,7 +305,7 @@ var CocosSec = {
     if(sig == null && request.signatureHex) {
       sig = ecdsaSigFromHex(request.signatureHex);
     }
-    return CocosSec.ecdsaVerify(request.pubHex, canonical, sig);
+    return CEngineSec.ecdsaVerify(request.pubHex, canonical, sig);
   },
 
   // --- Sign-in: prove possession of private key + server challenge ---
@@ -313,10 +313,10 @@ var CocosSec = {
   buildSignInRequest: function(username, identity, serverChallengeHex, serverNonceHex) {
     if(identity == null || identity.privHex == null || identity.pubHex == null) return null;
     var timestamp = new Date().getTime();
-    var canonical = CocosSec._authCanonical([
+    var canonical = CEngineSec._authCanonical([
       "signin", username, serverChallengeHex, timestamp, serverNonceHex
     ]);
-    var sig = CocosSec.ecdsaSign(identity.privHex, canonical);
+    var sig = CEngineSec.ecdsaSign(identity.privHex, canonical);
     if(sig == null) return null;
     return {
       action: "signin",
@@ -332,7 +332,7 @@ var CocosSec = {
 
   verifySignInRequest: function(request) {
     if(request == null || request.action != "signin") return false;
-    var canonical = CocosSec._authCanonical([
+    var canonical = CEngineSec._authCanonical([
       "signin", request.username, request.serverChallenge,
       request.timestamp, request.serverNonce
     ]);
@@ -340,19 +340,19 @@ var CocosSec = {
     if(sig == null && request.signatureHex) {
       sig = ecdsaSigFromHex(request.signatureHex);
     }
-    return CocosSec.ecdsaVerify(request.pubHex, canonical, sig);
+    return CEngineSec.ecdsaVerify(request.pubHex, canonical, sig);
   },
 
   // --- Sign / verify arbitrary user input (chat, commands, forms) ---
 
   signUserInput: function(privHex, userText) {
-    var canonical = CocosSec._authCanonical(["input", String(userText)]);
-    return CocosSec.ecdsaSign(privHex, canonical);
+    var canonical = CEngineSec._authCanonical(["input", String(userText)]);
+    return CEngineSec.ecdsaSign(privHex, canonical);
   },
 
   verifyUserInput: function(pubHex, userText, signature) {
-    var canonical = CocosSec._authCanonical(["input", String(userText)]);
-    return CocosSec.ecdsaVerify(pubHex, canonical, signature);
+    var canonical = CEngineSec._authCanonical(["input", String(userText)]);
+    return CEngineSec.ecdsaVerify(pubHex, canonical, signature);
   },
 
   // Full signed message object for sending over network
@@ -373,6 +373,6 @@ var CocosSec = {
     if(sig == null && packet.signatureHex) {
       sig = ecdsaSigFromHex(packet.signatureHex);
     }
-    return CocosSec.verifyUserInput(packet.pubHex, packet.text, sig);
+    return CEngineSec.verifyUserInput(packet.pubHex, packet.text, sig);
   }
 };

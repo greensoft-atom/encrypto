@@ -1,6 +1,6 @@
 # 02 — jsrsasign Core API Cheat Sheet
 
-Direct API reference for when you work inside `CryptoManager` or need to debug. Game code should prefer the facade in [examples/CryptoManager.js](./examples/CryptoManager.js).
+Direct API reference for when you work inside `CryptoManager` or need to debug. Biz code should prefer the facade in [examples/CryptoManager.js](./examples/CryptoManager.js).
 
 ---
 
@@ -171,7 +171,7 @@ RSA is for **small** payloads only (roughly key-size minus padding overhead).
 var hex16 = KJUR.crypto.Util.getRandomHexOfNbytes(16); // 32 hex chars = 16 bytes
 ```
 
-In Cocos2d, always mix additional entropy before key generation (see `CryptoManager.seedFromEnvironment`).
+In CEngine2d, always mix additional entropy before key generation (see `CryptoManager.seedFromEnvironment`).
 
 ---
 
@@ -220,7 +220,7 @@ Send password with every API call ❌  (use key-based signatures after login)
 
 ## Bundled interactive samples
 
-Open in a browser (for learning, not Cocos2d):
+Open in a browser (for learning, not CEngine2d):
 
 - `jsrsasign/sample/sample-rsasign.html` — RSA sign/verify
 - `jsrsasign/sample/sample-ecdsa.html` — EC keygen, sign, verify

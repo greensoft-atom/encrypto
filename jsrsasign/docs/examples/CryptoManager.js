@@ -1,7 +1,7 @@
-// CryptoManager.js — jsrsasign facade for Cocos2d-JS 1.5 (ES5, no require).
+// CryptoManager.js — jsrsasign facade for CEngine2d 1.5 (ES5, no require).
 // Requires: jsrsasign-all-min.js loaded first.
 //
-// Game code should use CryptoManager only — never KEYUTIL / KJUR directly.
+// Biz code should use CryptoManager only — never KEYUTIL / KJUR directly.
 
 var CryptoManager = {
   VERSION: "1.0.0",

@@ -1,4 +1,4 @@
-# 01 — Getting Started with jsrsasign in Cocos2d-JS
+# 01 — Getting Started with jsrsasign in CEngine2d
 
 ## Your runtime
 
@@ -6,25 +6,25 @@
 Android APK
     │
     ▼
-Cocos2d 1.5
+CEngine2d 1.5
     │
     ▼
 SpiderMonkey JavaScript
     │
     ▼
-Your Game Scripts
+Your Biz Scripts
 ```
 
 What you **do not** have:
 
 - Node.js, npm, CommonJS, ES modules
 - Browser DOM, `window.crypto`, WebCrypto
-- `fetch()`, `require()`
+- `fetch()`, `require()` (unless your build provides it)
 
 Everything must be **pure JavaScript** loaded by the engine:
 
 ```javascript
-// Typical Cocos2d 1.5 pattern (adjust to your project)
+// Typical CEngine2d 1.5 pattern (adjust to your project)
 require("src/crypto/jsrsasign-all-min.js");
 require("src/crypto/CryptoManager.js");
 require("src/crypto/IdentityManager.js");
@@ -42,7 +42,7 @@ Use the all-in-one bundle (already in this repo):
 jsrsasign/jsrsasign-all-min.js   (~350 KB minified)
 ```
 
-Copy it to your game project, for example:
+Copy it to your project, for example:
 
 ```
 src/crypto/jsrsasign-all-min.js
@@ -54,7 +54,7 @@ This single file includes RSA, ECDSA, SHA, HMAC, PEM/DER, KEYUTIL, and more. No 
 
 ## Step 2 — Verify the library loaded
 
-In any scene `onEnter` or a bootstrap script:
+In any view `onEnter` or a bootstrap script:
 
 ```javascript
 function checkCryptoLoaded() {
@@ -81,7 +81,7 @@ var hashHex = md.digestString("hello world");
 // => "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
 ```
 
-Via the facade (recommended for game code):
+Via the facade (recommended for biz code):
 
 ```javascript
 CryptoManager.initialize();
@@ -112,7 +112,7 @@ CryptoManager.initialize();
 CryptoManager.seedFromEnvironment();
 
 var kp = CryptoManager.generateECC("secp384r1");
-var message = "player moved to (10, 20)";
+var message = "user moved to (10, 20)";
 
 var sigHex = CryptoManager.signECC(message, kp, "SHA384withECDSA");
 var ok = CryptoManager.verifyECC(message, sigHex, kp, "SHA384withECDSA");
@@ -148,11 +148,11 @@ src/
     jsrsasign-all-min.js    ← vendor library (do not edit)
     CryptoManager.js        ← your facade (copy from docs/examples/)
     IdentityManager.js      ← auth layer (copy from docs/examples/)
-  game/
+  biz/
     ...                     ← never import jsrsasign here
 ```
 
-Game modules call `CryptoManager` / `IdentityManager` only.
+Biz modules call `CryptoManager` / `IdentityManager` only.
 
 ---
 
@@ -169,5 +169,6 @@ Game modules call `CryptoManager` / `IdentityManager` only.
 
 - [02-jsrsasign-core-api.md](./02-jsrsasign-core-api.md) — raw jsrsasign API reference
 - [03-architecture.md](./03-architecture.md) — full layered design
-- [examples/COCOS2D.md](./examples/COCOS2D.md) — exact script load order
+- [examples/CENGINE.md](./examples/CENGINE.md) — exact script load order
+- [06-https-networking.md](./06-https-networking.md) — HTTPS via XMLHttpRequest
 - Run `node jsrsasign/docs/examples/test-smoke.js` to validate the example code

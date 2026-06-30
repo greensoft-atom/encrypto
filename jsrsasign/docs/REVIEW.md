@@ -31,7 +31,7 @@ Review performed against jsrsasign APIs, smoke tests, and consistency with [disc
 - `KJUR.crypto.Mac` HmacSHA256 API usage
 - `hextob64` / `utf8tohex` / `b64tohex` / `hextoutf8` globals from jsrsasign bundle
 - Preferred helpers: `utf8tob64` / `b64toutf8` (used by CryptoManager)
-- ES5 syntax throughout (Cocos2d 1.5 compatible)
+- ES5 syntax throughout (CEngine2d 1.5 compatible)
 
 ---
 
@@ -79,8 +79,11 @@ docs/04-auth-flows.md
 docs/05-algorithms-and-security.md
 docs/examples/CryptoManager.js
 docs/examples/IdentityManager.js
-docs/examples/IdentityManager.js
-docs/examples/example-auth-scene.js
-docs/examples/COCOS2D.md
+docs/examples/NetworkManager.js
+docs/examples/BizApiClient.js
+docs/examples/example-auth-biz.js
+docs/examples/example-https-biz.js
+docs/examples/CENGINE.md
 docs/examples/test-smoke.js
+docs/examples/test-network-smoke.js
 ```

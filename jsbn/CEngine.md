@@ -1,8 +1,8 @@
-# Using jsbn with Cocos2d 1.5 Android
+# Using jsbn with CEngine2d 1.5 Android
 
 Pure legacy JavaScript cryptography for **RSA-2048** and **ECDH (secp384r1 / P-384)** — no Node.js, no browser, no bundler.
 
-This fork removes hard dependencies on `window`, `navigator`, and `alert()`, adds the **secp384r1** curve, and provides a thin **`CocosSec`** API for game code.
+This fork removes hard dependencies on `window`, `navigator`, and `alert()`, adds the **secp384r1** curve, and provides a thin **`CEngineSec`** API for game code.
 
 ---
 
@@ -18,17 +18,17 @@ This fork removes hard dependencies on `window`, `navigator`, and `alert()`, add
 | Pure JS math (BigInteger, RSA, EC)? | **Yes** — Tom Wu jsbn, ES3-style globals |
 | Files to ship in APK | 9 `.js` files (see load order below) |
 
-### What runs inside Cocos2d
+### What runs inside CEngine2d
 
-Everything is plain `.js` files loaded into the engine’s JavaScript VM (SpiderMonkey / JavaScriptCore). They define global functions and objects (`BigInteger`, `RSAKey`, `CocosSec`, …) — the same model Cocos2d 1.5 already uses.
+Everything is plain `.js` files loaded into the engine’s JavaScript VM (SpiderMonkey / JavaScriptCore). They define global functions and objects (`BigInteger`, `RSAKey`, `CEngineSec`, …) — the same model CEngine2d 1.5 already uses.
 
-**Only standard JS + optional Cocos2d globals:**
+**Only standard JS + optional CEngine2d globals:**
 
 | Used by | APIs |
 |---------|------|
 | All crypto core | `Math`, `Date`, `Array`, `String`, `parseInt` |
-| `CocosSec.gatherEntropyBytes` | above + optionally `cc.director`, `cc.sys` if `cc` exists |
-| `rng.js` (optional) | `window.crypto` **only if** `window` happens to exist — skipped in Cocos2d |
+| `CEngineSec.gatherEntropyBytes` | above + optionally `cc.director`, `cc.sys` if `cc` exists |
+| `rng.js` (optional) | `window.crypto` **only if** `window` happens to exist — skipped in CEngine2d |
 
 There is **no** `require()`, `import`, `fetch`, `document`, or `alert()` in the shipped crypto path.
 
@@ -51,7 +51,7 @@ On your dev PC (optional):
 node jsbn/test-smoke.js
 ```
 
-This loads all scripts in a **sandbox with no `window`, `navigator`, `alert`, or `cc`** — the same conditions as embedded Cocos2d JS — then checks:
+This loads all scripts in a **sandbox with no `window`, `navigator`, `alert`, or `cc`** — the same conditions as embedded CEngine2d JS — then checks:
 
 1. All files load without browser globals  
 2. ECDH P-384 shared secrets match  
@@ -70,7 +70,7 @@ var TEST_SEED = [
   0xce, 0x11, 0x9a, 0x64, 0x05, 0xb2, 0xf8, 0x73,
   0x1d, 0x4e, 0x86, 0xc0, 0x39, 0xa7, 0x52, 0x6d
 ];
-CocosSec.seedRandom(TEST_SEED);
+CEngineSec.seedRandom(TEST_SEED);
 ```
 
 | Output | Expected shape | Verified prefix (this fork) |
@@ -79,9 +79,9 @@ CocosSec.seedRandom(TEST_SEED);
 | `ecdhGenerateKeyPair().privHex` | ~96–110 hex chars | (deterministic — re-run test to compare) |
 | `rsaGenerateKey().n` | 512 hex chars (2048-bit) | `9940dfd4823bc03760abe71699c66271f54960d2...` |
 | `rsaGenerateKey().e` | `10001` | always |
-| `rsaEncrypt(n, e, "hello cocos2d")` | 512 hex chars | decrypts back to `"hello cocos2d"` |
+| `rsaEncrypt(n, e, "hello CEngine2d")` | 512 hex chars | decrypts back to `"hello CEngine2d"` |
 
-If your build prints the same prefixes after `CocosSec.seedRandom(TEST_SEED)`, the library is wired correctly.
+If your build prints the same prefixes after `CEngineSec.seedRandom(TEST_SEED)`, the library is wired correctly.
 
 ---
 
@@ -101,7 +101,7 @@ If your build prints the same prefixes after `CocosSec.seedRandom(TEST_SEED)`, t
 
 ## Copy files into your project
 
-Copy the entire `jsbn/` folder into your Cocos2d JavaScript source tree, for example:
+Copy the entire `jsbn/` folder into your CEngine2d JavaScript source tree, for example:
 
 ```
 YourGame/
@@ -118,7 +118,7 @@ YourGame/
         sec.js
         sha256.js
         ecdsa.js
-        cocos2d-sec.js
+        CEngine2d-sec.js
         example-auth-scene.js   ← register / sign-in / signed input patterns
 ```
 
@@ -146,10 +146,10 @@ Scripts must be loaded **in this exact order** before you call any crypto API:
 8. sec.js
 9. sha256.js
 10. ecdsa.js
-11. cocos2d-sec.js
+11. CEngine2d-sec.js
 ```
 
-### Cocos2d-x JavaScript (JSB) example
+### CEngine2d-x JavaScript (JSB) example
 
 If your project lists scripts in `project.json` or loads them in `main.js`:
 
@@ -167,7 +167,7 @@ If your project lists scripts in `project.json` or loads them in `main.js`:
     "src/crypto/jsbn/sec.js",
     "src/crypto/jsbn/sha256.js",
     "src/crypto/jsbn/ecdsa.js",
-    "src/crypto/jsbn/cocos2d-sec.js"
+    "src/crypto/jsbn/CEngine2d-sec.js"
   ];
   for (var i = 0; i < scripts.length; i++) {
     require(scripts[i]);  // or your engine's equivalent script loader
@@ -175,18 +175,18 @@ If your project lists scripts in `project.json` or loads them in `main.js`:
 })();
 ```
 
-If your Cocos2d 1.5 build does not support `require()`, include the files via whatever mechanism your template uses (concatenation, manual `<script>` tags in the bootstrap HTML, or engine-specific script registration).
+If your CEngine2d 1.5 build does not support `require()`, include the files via whatever mechanism your template uses (concatenation, manual `<script>` tags in the bootstrap HTML, or engine-specific script registration).
 
 ---
 
 ## Seed randomness before key generation
 
-**Always seed the RNG** before generating keys. In Cocos2d embedded JS there is no `window.crypto` and (in this guide) no Android `SecureRandom` bridge.
+**Always seed the RNG** before generating keys. In CEngine2d embedded JS there is no `window.crypto` and (in this guide) no Android `SecureRandom` bridge.
 
 `seedRandom` accepts a JavaScript array of byte values (`0`–`255`). Each call **mixes** new bytes into the pool; call it at startup and again right before key generation.
 
 ```javascript
-CocosSec.setErrorHandler(function(msg) {
+CEngineSec.setErrorHandler(function(msg) {
   cc.log("crypto: " + msg);
 });
 ```
@@ -205,17 +205,17 @@ var testSeed = [
   0xce, 0x11, 0x9a, 0x64, 0x05, 0xb2, 0xf8, 0x73,
   0x1d, 0x4e, 0x86, 0xc0, 0x39, 0xa7, 0x52, 0x6d
 ];
-CocosSec.seedRandom(testSeed);
+CEngineSec.seedRandom(testSeed);
 
-var key = CocosSec.rsaGenerateKey();
+var key = CEngineSec.rsaGenerateKey();
 cc.log("modulus starts with: " + key.n.substring(0, 16));
 // Always the same prefix for this seed, e.g. "a4f3c2..."
 ```
 
-You can also build bytes from a hex string (built into `CocosSec`):
+You can also build bytes from a hex string (built into `CEngineSec`):
 
 ```javascript
-CocosSec.seedRandom(CocosSec.hexToBytes(
+CEngineSec.seedRandom(CEngineSec.hexToBytes(
   "deadbeef0123456789abcdef0123456789abcdef0123456789abcdef01234567"
 ));
 ```
@@ -223,8 +223,8 @@ CocosSec.seedRandom(CocosSec.hexToBytes(
 After seeding with `TEST_SEED` above, this public key prefix confirms ECDH works:
 
 ```javascript
-CocosSec.seedRandom(TEST_SEED);
-var kp = CocosSec.ecdhGenerateKeyPair();
+CEngineSec.seedRandom(TEST_SEED);
+var kp = CEngineSec.ecdhGenerateKeyPair();
 cc.log(kp.pubHex.substring(0, 40));
 // expect: 04a820f1e100640dee1e5a492bda665bb98e24cc
 ```
@@ -233,22 +233,22 @@ cc.log(kp.pubHex.substring(0, 40));
 
 ### Approach 2 — JS-only environment entropy (no native code)
 
-`CocosSec.gatherEntropyBytes()` collects what is available in plain Cocos2d JS: `Date`, `Math.random()`, frame counter, OS/platform string.
+`CEngineSec.gatherEntropyBytes()` collects what is available in plain CEngine2d JS: `Date`, `Math.random()`, frame counter, OS/platform string.
 
 ```javascript
 // Returns 32 ints 0-255, e.g. [183, 44, 201, 17, 92, ...]
-var seed = CocosSec.gatherEntropyBytes(32);
-CocosSec.seedRandom(seed);
+var seed = CEngineSec.gatherEntropyBytes(32);
+CEngineSec.seedRandom(seed);
 
-var alice = CocosSec.ecdhGenerateKeyPair();
+var alice = CEngineSec.ecdhGenerateKeyPair();
 cc.log("alice pub starts with: " + alice.pubHex.substring(0, 8)); // "046AA87C..."
 ```
 
 One-liner wrapper:
 
 ```javascript
-CocosSec.seedFromEnvironment();
-var bob = CocosSec.ecdhGenerateKeyPair();
+CEngineSec.seedFromEnvironment();
+var bob = CEngineSec.ecdhGenerateKeyPair();
 ```
 
 This is **better than `seedRandom(null)`** (time only), but still weaker than a hardware RNG. Acceptable for client-side ECDH session setup if the server also contributes randomness (see Approach 4).
@@ -266,16 +266,16 @@ cc.eventManager.addListener({
   swallowTouches: false,
   onTouchBegan: function(touch, event) {
     var p = touch.getLocation();
-    CocosSec.addTouchEntropy(p.x | 0, p.y | 0);
-    cc.log("entropy samples: " + CocosSec._touchEntropy.length);
+    CEngineSec.addTouchEntropy(p.x | 0, p.y | 0);
+    cc.log("entropy samples: " + CEngineSec._touchEntropy.length);
     return true;
   }
 }, yourLayer);
 
 // After user tapped 3-5 times:
 function onLoginButton() {
-  CocosSec.seedFromEnvironment();  // mixes touch samples + time + Math.random()
-  var session = CocosSec.ecdhGenerateKeyPair();
+  CEngineSec.seedFromEnvironment();  // mixes touch samples + time + Math.random()
+  var session = CEngineSec.ecdhGenerateKeyPair();
   cc.log("session pub: " + session.pubHex.substring(0, 20) + "...");
   sendToServer(session.pubHex);
 }
@@ -284,11 +284,11 @@ function onLoginButton() {
 Concrete touch example — user taps at `(412, 891)` then `(418, 887)`:
 
 ```javascript
-CocosSec.addTouchEntropy(412, 891);
-CocosSec.addTouchEntropy(418, 887);
-var seed = CocosSec.gatherEntropyBytes(32, CocosSec._touchEntropy);
+CEngineSec.addTouchEntropy(412, 891);
+CEngineSec.addTouchEntropy(418, 887);
+var seed = CEngineSec.gatherEntropyBytes(32, CEngineSec._touchEntropy);
 // seed might look like: [183, 44, 201, 17, 92, 7, 140, 1, ...]
-CocosSec.seedRandom(seed);
+CEngineSec.seedRandom(seed);
 ```
 
 ---
@@ -300,14 +300,14 @@ Client randomness alone is weak. Have the **server send 32 random bytes** (hex) 
 ```javascript
 // Server sent: "8f3c2a1b9d0e4f5678901234567890abcdef0123456789abcdef012345678"
 function onServerHello(serverNonceHex) {
-  var serverBytes = CocosSec.hexToBytes(serverNonceHex);
-  var clientBytes = CocosSec.gatherEntropyBytes(32);
+  var serverBytes = CEngineSec.hexToBytes(serverNonceHex);
+  var clientBytes = CEngineSec.gatherEntropyBytes(32);
 
   // Combine both sides: concat then seed
   var combined = serverBytes.concat(clientBytes);
-  CocosSec.seedRandom(combined);
+  CEngineSec.seedRandom(combined);
 
-  var kp = CocosSec.ecdhGenerateKeyPair();
+  var kp = CEngineSec.ecdhGenerateKeyPair();
   replyToServer(kp.pubHex);
 }
 ```
@@ -333,7 +333,7 @@ Embed only `n` and `e` in the game; keep `private.pem` on the server:
 var SERVER_N = "a5261939975948bb7a58dffe5ff54e65..."; // full 512-char hex for 2048-bit
 var SERVER_E = "10001";
 
-var ciphertext = CocosSec.rsaEncrypt(SERVER_N, SERVER_E, "player123|session");
+var ciphertext = CEngineSec.rsaEncrypt(SERVER_N, SERVER_E, "player123|session");
 cc.log("cipher len: " + ciphertext.length); // 512 hex chars for 2048-bit
 ```
 
@@ -345,7 +345,7 @@ For ECDH, embed the server’s long-term public key and only generate an **ephem
 
 | Call | When to use |
 |------|-------------|
-| `CocosSec.seedRandom(null)` | Quick smoke test only — seeds from current time |
+| `CEngineSec.seedRandom(null)` | Quick smoke test only — seeds from current time |
 | Fixed byte array | Debugging only — keys repeat every launch |
 | `seedFromEnvironment()` alone in production | OK for ECDH if server also sends a nonce |
 | No seeding at all | Do not rely on default pool for key generation |
@@ -356,12 +356,12 @@ For ECDH, embed the server’s long-term public key and only generate an **ephem
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Your Cocos2d scene (example-login-scene.js)            │
-│  CocosSec.rsaEncrypt / ecdhGenerateKeyPair / …          │
+│  Your CEngine2d scene (example-login-scene.js)            │
+│  CEngineSec.rsaEncrypt / ecdhGenerateKeyPair / …          │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│  cocos2d-sec.js   — RSA-2048 + ECDH P-384 helpers       │
+│  CEngine2d-sec.js   — RSA-2048 + ECDH P-384 helpers       │
 └──────────────────────────┬──────────────────────────────┘
                            │
      ┌─────────────────────┼─────────────────────┐
@@ -382,7 +382,7 @@ For ECDH, embed the server’s long-term public key and only generate an **ephem
 **Typical login flow (recommended without native RNG):**
 
 1. Server sends random nonce (32 bytes hex)  
-2. Client calls `CocosSec.seedRandom(serverBytes.concat(clientBytes))`  
+2. Client calls `CEngineSec.seedRandom(serverBytes.concat(clientBytes))`  
 3. Client generates ephemeral ECDH key pair → sends `pubHex` to server  
 4. Both sides compute `ecdhSharedSecretX` → same hex string  
 5. Client RSA-encrypts a short login token with server’s embedded public key  
@@ -417,15 +417,15 @@ Signed user input (chat, commands):
 
 ```javascript
 // After server hello with nonce hex
-CocosSec.seedRandom(
-  CocosSec.hexToBytes(serverNonceHex).concat(CocosSec.gatherEntropyBytes(32))
+CEngineSec.seedRandom(
+  CEngineSec.hexToBytes(serverNonceHex).concat(CEngineSec.gatherEntropyBytes(32))
 );
 
-var identity = CocosSec.createUserIdentity();
+var identity = CEngineSec.createUserIdentity();
 // identity.privHex — save locally only
 // identity.pubHex  — 194 hex chars, sent to server
 
-var req = CocosSec.buildRegisterRequest("alice", "MyPassword123", identity, serverNonceHex);
+var req = CEngineSec.buildRegisterRequest("alice", "MyPassword123", identity, serverNonceHex);
 // req fields:
 //   username, passwordHash, pubHex, timestamp, serverNonce
 //   signature: { rHex, sHex }   signatureHex: rHex+sHex (384 hex chars)
@@ -433,7 +433,7 @@ var req = CocosSec.buildRegisterRequest("alice", "MyPassword123", identity, serv
 sendToServer(JSON.stringify(req));
 
 // Persist locally (private key never leaves device)
-CocosSec.saveUserLocal("user_identity_v1", CocosSec.identityToStorage("alice", identity));
+CEngineSec.saveUserLocal("user_identity_v1", CEngineSec.identityToStorage("alice", identity));
 ```
 
 `passwordHash` is `SHA256(username + "|" + password)` — the server never receives the plain password.
@@ -441,12 +441,12 @@ CocosSec.saveUserLocal("user_identity_v1", CocosSec.identityToStorage("alice", i
 ### 2. Sign in (returning user)
 
 ```javascript
-var identity = CocosSec.loadUserLocal("user_identity_v1");
+var identity = CEngineSec.loadUserLocal("user_identity_v1");
 if (identity == null) { cc.log("not registered"); return; }
 
-CocosSec.seedFromEnvironment(CocosSec.hexToBytes(serverNonceHex));
+CEngineSec.seedFromEnvironment(CEngineSec.hexToBytes(serverNonceHex));
 
-var req = CocosSec.buildSignInRequest(
+var req = CEngineSec.buildSignInRequest(
   "alice",
   identity,
   serverChallengeHex,   // e.g. "a1b2c3d4e5f6..."
@@ -462,31 +462,31 @@ Server verifies the signature proves the client holds `privHex` matching `pubHex
 ### 3. Sign user input (chat / game commands)
 
 ```javascript
-var identity = CocosSec.loadUserLocal("user_identity_v1");
+var identity = CEngineSec.loadUserLocal("user_identity_v1");
 
-var sig = CocosSec.signUserInput(identity.privHex, "move north");
+var sig = CEngineSec.signUserInput(identity.privHex, "move north");
 // sig.rHex, sig.sHex — 96 hex chars each for P-384
 
-var packet = CocosSec.wrapSignedInput("alice", identity.pubHex, "move north", sig);
+var packet = CEngineSec.wrapSignedInput("alice", identity.pubHex, "move north", sig);
 // packet: { username, pubHex, text, signature, signatureHex, timestamp }
 
 sendToServer(JSON.stringify(packet));
 ```
 
-### 4. Verify on server (same CocosSec API in your backend logic)
+### 4. Verify on server (same CEngineSec API in your backend logic)
 
 ```javascript
 var req = JSON.parse(incomingBody);
 
-if (req.action === "register" && CocosSec.verifyRegisterRequest(req)) {
+if (req.action === "register" && CEngineSec.verifyRegisterRequest(req)) {
   saveUser(req.username, req.pubHex, req.passwordHash);
 }
 
-if (req.action === "signin" && CocosSec.verifySignInRequest(req)) {
+if (req.action === "signin" && CEngineSec.verifySignInRequest(req)) {
   openSession(req.username);
 }
 
-if (CocosSec.verifySignedInput(req)) {
+if (CEngineSec.verifySignedInput(req)) {
   handleCommand(req.username, req.text);
 }
 ```
@@ -494,9 +494,9 @@ if (CocosSec.verifySignedInput(req)) {
 ### Low-level sign / verify (any string)
 
 ```javascript
-var hash = CocosSec.sha256("hello");           // 64 hex chars
-var sig  = CocosSec.ecdsaSign(privHex, "hello");
-var ok   = CocosSec.ecdsaVerify(pubHex, "hello", sig);  // true/false
+var hash = CEngineSec.sha256("hello");           // 64 hex chars
+var sig  = CEngineSec.ecdsaSign(privHex, "hello");
+var ok   = CEngineSec.ecdsaVerify(pubHex, "hello", sig);  // true/false
 ```
 
 ECDSA verify on P-384 is slow (~5–30 s on old Android). Run verify on the **server**, not every frame on the client.
@@ -518,9 +518,9 @@ ECDSA verify on P-384 is slow (~5–30 s on old Android). Run verify on the **se
 ### Generate a key pair
 
 ```javascript
-CocosSec.seedFromEnvironment();
+CEngineSec.seedFromEnvironment();
 
-var key = CocosSec.rsaGenerateKey();
+var key = CEngineSec.rsaGenerateKey();
 // key.n, key.e, key.d, key.p, key.q, key.dmp1, key.dmq1, key.coeff — all hex strings
 ```
 
@@ -529,7 +529,7 @@ Key generation is **slow** on older Android devices (often several seconds). Run
 ### Encrypt with a public key
 
 ```javascript
-var ciphertextHex = CocosSec.rsaEncrypt(key.n, key.e, "hello server");
+var ciphertextHex = CEngineSec.rsaEncrypt(key.n, key.e, "hello server");
 if (ciphertextHex == null) {
   cc.log("encrypt failed — message too long or bad key");
 }
@@ -540,16 +540,16 @@ Maximum plaintext length for RSA-2048 with PKCS#1 padding is **245 bytes** (less
 ### Decrypt with a private key
 
 ```javascript
-var plaintext = CocosSec.rsaDecrypt(key, ciphertextHex);
+var plaintext = CEngineSec.rsaDecrypt(key, ciphertextHex);
 ```
 
 ### Reuse key objects (avoid repeated parsing)
 
 ```javascript
-var pub = CocosSec.rsaCreatePublic(serverNHex, "10001");
+var pub = CEngineSec.rsaCreatePublic(serverNHex, "10001");
 var ct = pub.encrypt("session token");
 
-var priv = CocosSec.rsaCreatePrivate(storedKey);
+var priv = CEngineSec.rsaCreatePrivate(storedKey);
 var pt = priv.decrypt(ct);
 ```
 
@@ -570,9 +570,9 @@ P-384 public keys are always **194 hex characters** (1 byte prefix + 48 bytes X 
 ### Generate a key pair
 
 ```javascript
-CocosSec.seedFromEnvironment();
+CEngineSec.seedFromEnvironment();
 
-var alice = CocosSec.ecdhGenerateKeyPair();
+var alice = CEngineSec.ecdhGenerateKeyPair();
 // alice.privHex  — keep secret
 // alice.pubHex   — send to peer (uncompressed point, hex, starts with "04")
 ```
@@ -581,13 +581,13 @@ var alice = CocosSec.ecdhGenerateKeyPair();
 
 ```javascript
 // Alice derives secret using her private key and Bob's public key
-var secret = CocosSec.ecdhComputeSecret(alice.privHex, bob.pubHex);
+var secret = CEngineSec.ecdhComputeSecret(alice.privHex, bob.pubHex);
 
 // secret.xHex, secret.yHex — coordinates of shared point
 // secret.pointHex — full uncompressed point
 
 // Common pattern: use X coordinate as shared secret input to a KDF
-var sharedX = CocosSec.ecdhSharedSecretX(alice.privHex, bob.pubHex);
+var sharedX = CEngineSec.ecdhSharedSecretX(alice.privHex, bob.pubHex);
 ```
 
 Both parties compute the same shared value when they exchange public keys and multiply by their own private key.
@@ -606,23 +606,23 @@ var LoginCrypto = {
 
   onServerHello: function(serverNonceHex) {
     // 1) Mix server + client entropy
-    var combined = CocosSec.hexToBytes(serverNonceHex)
-      .concat(CocosSec.gatherEntropyBytes(32));
-    CocosSec.seedRandom(combined);
+    var combined = CEngineSec.hexToBytes(serverNonceHex)
+      .concat(CEngineSec.gatherEntropyBytes(32));
+    CEngineSec.seedRandom(combined);
 
     // 2) Ephemeral ECDH key for this session
-    var session = CocosSec.ecdhGenerateKeyPair();
+    var session = CEngineSec.ecdhGenerateKeyPair();
     if (session == null) return;
 
     // 3) Shared secret (same value server computes with their priv + our pubHex)
-    var sharedX = CocosSec.ecdhSharedSecretX(
+    var sharedX = CEngineSec.ecdhSharedSecretX(
       session.privHex,
       LoginCrypto.SERVER_ECDH_PUB
     );
 
     // 4) RSA-encrypt login payload (max ~245 bytes for RSA-2048)
     var token = "player42|" + sharedX.substring(0, 16);
-    var cipher = CocosSec.rsaEncrypt(
+    var cipher = CEngineSec.rsaEncrypt(
       LoginCrypto.SERVER_RSA_N,
       LoginCrypto.SERVER_RSA_E,
       token
@@ -647,7 +647,7 @@ var SERVER_N = "a5261939975948bb7a58dffe5ff54e65f0498f9175f5a09288810b8975871e99
            + "c2429bce139e848ab26d0829073351f4acd36074eafd036a5eb83359d2a698d3";
 var SERVER_E = "10001";
 
-var cipher = CocosSec.rsaEncrypt(SERVER_N, SERVER_E, "player123|session");
+var cipher = CEngineSec.rsaEncrypt(SERVER_N, SERVER_E, "player123|session");
 cc.log("ciphertext length: " + cipher.length);  // 512
 // Server: echo <hex> | xxd -r -p | openssl rsautl -decrypt -inkey private.pem
 ```
@@ -658,15 +658,15 @@ cc.log("ciphertext length: " + cipher.length);  // 512
 
 ```javascript
 function runEcdhDemo() {
-  CocosSec.seedFromEnvironment();
+  CEngineSec.seedFromEnvironment();
 
-  var alice = CocosSec.ecdhGenerateKeyPair();
-  var bob   = CocosSec.ecdhGenerateKeyPair();
+  var alice = CEngineSec.ecdhGenerateKeyPair();
+  var bob   = CEngineSec.ecdhGenerateKeyPair();
 
   // Exchange alice.pubHex <-> bob.pubHex over the network
 
-  var aliceSecret = CocosSec.ecdhSharedSecretX(alice.privHex, bob.pubHex);
-  var bobSecret   = CocosSec.ecdhSharedSecretX(bob.privHex, alice.pubHex);
+  var aliceSecret = CEngineSec.ecdhSharedSecretX(alice.privHex, bob.pubHex);
+  var bobSecret   = CEngineSec.ecdhSharedSecretX(bob.privHex, alice.pubHex);
 
   // aliceSecret === bobSecret
   cc.log("shared: " + aliceSecret);
@@ -682,7 +682,7 @@ If you later bridge Java `SecureRandom` through JSB, you can pass those bytes di
 ```javascript
 // Only if you implement this bridge yourself later
 var nativeBytes = [201, 17, 92, 7, 140, 1, 66, 240, /* ... 24 more bytes ... */];
-CocosSec.seedRandom(nativeBytes);
+CEngineSec.seedRandom(nativeBytes);
 ```
 
 Until then, use **Approach 4** (server nonce) or **Approach 5** (offline-generated keys) from the seeding section above.
@@ -696,7 +696,7 @@ Errors no longer call `alert()`. Optionally register a handler:
 ```javascript
 jsbn_onerror = function(msg) { cc.log(msg); };
 // or
-CocosSec.setErrorHandler(function(msg) { cc.log(msg); });
+CEngineSec.setErrorHandler(function(msg) { cc.log(msg); });
 ```
 
 API functions return `null` on failure. Always check return values.
@@ -750,47 +750,47 @@ For maximum security and speed on Android, use native crypto for key storage and
 
 ```javascript
 // Constants
-CocosSec.RSA_BITS      // 2048
-CocosSec.RSA_EXP       // "10001"
-CocosSec.ECDH_CURVE    // "secp384r1"
+CEngineSec.RSA_BITS      // 2048
+CEngineSec.RSA_EXP       // "10001"
+CEngineSec.ECDH_CURVE    // "secp384r1"
 
 // RNG
-CocosSec.seedRandom(byteArray)          // replace pool with bytes [0x3a, 0xf2, ...]
-CocosSec.gatherEntropyBytes(32, extra)  // build bytes from Date/Math.random/cc.*
-CocosSec.seedFromEnvironment(extra)     // gather + seed + mix time (non-deterministic)
-CocosSec.addTouchEntropy(x, y)          // mix touch coords into next seed
-CocosSec.hexToBytes(hex)                // "deadbeef" -> [222, 190, 239]
-CocosSec.bytesToHex(bytes)              // [222, 190, 239] -> "deadbeef"
-CocosSec.setErrorHandler(fn)
+CEngineSec.seedRandom(byteArray)          // replace pool with bytes [0x3a, 0xf2, ...]
+CEngineSec.gatherEntropyBytes(32, extra)  // build bytes from Date/Math.random/cc.*
+CEngineSec.seedFromEnvironment(extra)     // gather + seed + mix time (non-deterministic)
+CEngineSec.addTouchEntropy(x, y)          // mix touch coords into next seed
+CEngineSec.hexToBytes(hex)                // "deadbeef" -> [222, 190, 239]
+CEngineSec.bytesToHex(bytes)              // [222, 190, 239] -> "deadbeef"
+CEngineSec.setErrorHandler(fn)
 
 // RSA-2048
-CocosSec.rsaGenerateKey()
-CocosSec.rsaEncrypt(nHex, eHex, plaintext)
-CocosSec.rsaDecrypt(key, ciphertextHex)
-CocosSec.rsaCreatePublic(nHex, eHex)
-CocosSec.rsaCreatePrivate(key)
+CEngineSec.rsaGenerateKey()
+CEngineSec.rsaEncrypt(nHex, eHex, plaintext)
+CEngineSec.rsaDecrypt(key, ciphertextHex)
+CEngineSec.rsaCreatePublic(nHex, eHex)
+CEngineSec.rsaCreatePrivate(key)
 
 // ECDH P-384
-CocosSec.ecdhGenerateKeyPair()
-CocosSec.ecdhComputeSecret(privHex, peerPubHex)
-CocosSec.ecdhSharedSecretX(privHex, peerPubHex)
+CEngineSec.ecdhGenerateKeyPair()
+CEngineSec.ecdhComputeSecret(privHex, peerPubHex)
+CEngineSec.ecdhSharedSecretX(privHex, peerPubHex)
 
 // Hash + ECDSA P-384
-CocosSec.sha256(text)
-CocosSec.hashPassword(username, password)
-CocosSec.ecdsaSign(privHex, message)
-CocosSec.ecdsaVerify(pubHex, message, signature)
+CEngineSec.sha256(text)
+CEngineSec.hashPassword(username, password)
+CEngineSec.ecdsaSign(privHex, message)
+CEngineSec.ecdsaVerify(pubHex, message, signature)
 
 // User auth
-CocosSec.createUserIdentity()
-CocosSec.buildRegisterRequest(username, password, identity, serverNonceHex)
-CocosSec.buildSignInRequest(username, identity, serverChallengeHex, serverNonceHex)
-CocosSec.verifyRegisterRequest(req)
-CocosSec.verifySignInRequest(req)
-CocosSec.signUserInput(privHex, userText)
-CocosSec.verifyUserInput(pubHex, userText, signature)
-CocosSec.wrapSignedInput(username, pubHex, text, signature)
-CocosSec.verifySignedInput(packet)
-CocosSec.saveUserLocal(key, record)
-CocosSec.loadUserLocal(key)
+CEngineSec.createUserIdentity()
+CEngineSec.buildRegisterRequest(username, password, identity, serverNonceHex)
+CEngineSec.buildSignInRequest(username, identity, serverChallengeHex, serverNonceHex)
+CEngineSec.verifyRegisterRequest(req)
+CEngineSec.verifySignInRequest(req)
+CEngineSec.signUserInput(privHex, userText)
+CEngineSec.verifyUserInput(pubHex, userText, signature)
+CEngineSec.wrapSignedInput(username, pubHex, text, signature)
+CEngineSec.verifySignedInput(packet)
+CEngineSec.saveUserLocal(key, record)
+CEngineSec.loadUserLocal(key)
 ```
