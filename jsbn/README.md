@@ -52,7 +52,9 @@ This will print `b60c`.
 |------|-------------|
 | `ec.js` | Elliptic curve math; depends on both `jsbn.js` and `jsbn2.js`. |
 | `sec.js` | Standard elliptic curve parameters (includes **secp384r1**). |
-| `cocos2d-sec.js` | Cocos2d-friendly helpers for RSA-2048 and ECDH P-384. |
+| `sha256.js` | SHA-256 hash (`hex_sha256`). |
+| `ecdsa.js` | ECDSA sign/verify for secp384r1. |
+| `cocos2d-sec.js` | High-level API: RSA-2048, ECDH, ECDSA, register/sign-in helpers. |
 
 ### Utilities
 

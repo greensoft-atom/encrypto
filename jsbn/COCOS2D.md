@@ -92,7 +92,8 @@ If your build prints the same prefixes after `CocosSec.seedRandom(TEST_SEED)`, t
 | RSA-2048 key generation | Yes |
 | RSA PKCS#1 v1.5 encrypt/decrypt | Yes |
 | ECDH P-384 (secp384r1) key agreement | Yes |
-| ECDSA sign/verify | No (not in original jsbn) |
+| ECDSA P-384 sign/verify | Yes |
+| User register / sign-in helpers | Yes |
 | Node.js / npm | Not required |
 | Browser DOM / Web Crypto | Not required |
 
@@ -115,8 +116,10 @@ YourGame/
         rsa2.js
         ec.js
         sec.js
+        sha256.js
+        ecdsa.js
         cocos2d-sec.js
-        example-login-scene.js   ← copy patterns from here (optional)
+        example-auth-scene.js   ← register / sign-in / signed input patterns
 ```
 
 Optional utilities (not required for RSA/ECDH):
@@ -141,7 +144,9 @@ Scripts must be loaded **in this exact order** before you call any crypto API:
 6. rsa2.js
 7. ec.js
 8. sec.js
-9. cocos2d-sec.js
+9. sha256.js
+10. ecdsa.js
+11. cocos2d-sec.js
 ```
 
 ### Cocos2d-x JavaScript (JSB) example
@@ -160,6 +165,8 @@ If your project lists scripts in `project.json` or loads them in `main.js`:
     "src/crypto/jsbn/rsa2.js",
     "src/crypto/jsbn/ec.js",
     "src/crypto/jsbn/sec.js",
+    "src/crypto/jsbn/sha256.js",
+    "src/crypto/jsbn/ecdsa.js",
     "src/crypto/jsbn/cocos2d-sec.js"
   ];
   for (var i = 0; i < scripts.length; i++) {
@@ -380,7 +387,119 @@ For ECDH, embed the server’s long-term public key and only generate an **ephem
 4. Both sides compute `ecdhSharedSecretX` → same hex string  
 5. Client RSA-encrypts a short login token with server’s embedded public key  
 
-See **`example-login-scene.js`** for a complete skeleton.
+See **`example-auth-scene.js`** for a complete skeleton.
+
+---
+
+## User auth: register, sign-in, signed input
+
+One **P-384 identity key pair** per user is used for both ECDH session keys and ECDSA signatures (SHA-256 hash + sign).
+
+### Flow overview
+
+```
+Register:
+  server --(nonce)--> client
+  client: createUserIdentity() -> buildRegisterRequest() -> send JSON
+  server: verifyRegisterRequest() -> store username + pubHex
+
+Sign-in:
+  server --(nonce + challenge)--> client
+  client: loadUserLocal() -> buildSignInRequest() -> send JSON
+  server: verifySignInRequest() -> issue session
+
+Signed user input (chat, commands):
+  client: signUserInput() -> wrapSignedInput() -> send JSON
+  server/peer: verifySignedInput()
+```
+
+### 1. Create identity (register screen)
+
+```javascript
+// After server hello with nonce hex
+CocosSec.seedRandom(
+  CocosSec.hexToBytes(serverNonceHex).concat(CocosSec.gatherEntropyBytes(32))
+);
+
+var identity = CocosSec.createUserIdentity();
+// identity.privHex — save locally only
+// identity.pubHex  — 194 hex chars, sent to server
+
+var req = CocosSec.buildRegisterRequest("alice", "MyPassword123", identity, serverNonceHex);
+// req fields:
+//   username, passwordHash, pubHex, timestamp, serverNonce
+//   signature: { rHex, sHex }   signatureHex: rHex+sHex (384 hex chars)
+
+sendToServer(JSON.stringify(req));
+
+// Persist locally (private key never leaves device)
+CocosSec.saveUserLocal("user_identity_v1", CocosSec.identityToStorage("alice", identity));
+```
+
+`passwordHash` is `SHA256(username + "|" + password)` — the server never receives the plain password.
+
+### 2. Sign in (returning user)
+
+```javascript
+var identity = CocosSec.loadUserLocal("user_identity_v1");
+if (identity == null) { cc.log("not registered"); return; }
+
+CocosSec.seedFromEnvironment(CocosSec.hexToBytes(serverNonceHex));
+
+var req = CocosSec.buildSignInRequest(
+  "alice",
+  identity,
+  serverChallengeHex,   // e.g. "a1b2c3d4e5f6..."
+  serverNonceHex
+);
+// req: username, pubHex, serverChallenge, timestamp, serverNonce, signature
+
+sendToServer(JSON.stringify(req));
+```
+
+Server verifies the signature proves the client holds `privHex` matching `pubHex`.
+
+### 3. Sign user input (chat / game commands)
+
+```javascript
+var identity = CocosSec.loadUserLocal("user_identity_v1");
+
+var sig = CocosSec.signUserInput(identity.privHex, "move north");
+// sig.rHex, sig.sHex — 96 hex chars each for P-384
+
+var packet = CocosSec.wrapSignedInput("alice", identity.pubHex, "move north", sig);
+// packet: { username, pubHex, text, signature, signatureHex, timestamp }
+
+sendToServer(JSON.stringify(packet));
+```
+
+### 4. Verify on server (same CocosSec API in your backend logic)
+
+```javascript
+var req = JSON.parse(incomingBody);
+
+if (req.action === "register" && CocosSec.verifyRegisterRequest(req)) {
+  saveUser(req.username, req.pubHex, req.passwordHash);
+}
+
+if (req.action === "signin" && CocosSec.verifySignInRequest(req)) {
+  openSession(req.username);
+}
+
+if (CocosSec.verifySignedInput(req)) {
+  handleCommand(req.username, req.text);
+}
+```
+
+### Low-level sign / verify (any string)
+
+```javascript
+var hash = CocosSec.sha256("hello");           // 64 hex chars
+var sig  = CocosSec.ecdsaSign(privHex, "hello");
+var ok   = CocosSec.ecdsaVerify(pubHex, "hello", sig);  // true/false
+```
+
+ECDSA verify on P-384 is slow (~5–30 s on old Android). Run verify on the **server**, not every frame on the client.
 
 ---
 
@@ -477,9 +596,7 @@ P-384 operations are slower than P-256. Expect hundreds of milliseconds per key 
 
 ---
 
-## Complete end-to-end example
-
-Full login handshake (server nonce + ECDH + RSA). Adapt from **`example-login-scene.js`**:
+## Complete end-to-end example (ECDH + RSA transport)
 
 ```javascript
 var LoginCrypto = {
@@ -621,10 +738,9 @@ jsbn uses **uncompressed** points (`04` + X + Y hex). Ensure your server expects
 
 ## Limitations
 
-- **No ECDSA** — sign/verify is not implemented; only ECDH key agreement.
-- **No SHA-256** in this bundle — add your own hash if you need HKDF or signed protocols.
-- **Pure JavaScript** — slower than native Android `KeyStore` / NDK crypto.
-- **PKCS#1 encrypt only** — no RSA-PSS signatures.
+- **ECDSA verify is slow on P-384** in pure JS — prefer server-side verify; client only signs.
+- **Pure JavaScript** — slower than native Android crypto.
+- **PKCS#1 RSA encrypt only** — no RSA-PSS signatures (use ECDSA for auth instead).
 
 For maximum security and speed on Android, use native crypto for key storage and heavy operations, and keep this library for logic that must run entirely in the JS game layer.
 
@@ -658,4 +774,23 @@ CocosSec.rsaCreatePrivate(key)
 CocosSec.ecdhGenerateKeyPair()
 CocosSec.ecdhComputeSecret(privHex, peerPubHex)
 CocosSec.ecdhSharedSecretX(privHex, peerPubHex)
+
+// Hash + ECDSA P-384
+CocosSec.sha256(text)
+CocosSec.hashPassword(username, password)
+CocosSec.ecdsaSign(privHex, message)
+CocosSec.ecdsaVerify(pubHex, message, signature)
+
+// User auth
+CocosSec.createUserIdentity()
+CocosSec.buildRegisterRequest(username, password, identity, serverNonceHex)
+CocosSec.buildSignInRequest(username, identity, serverChallengeHex, serverNonceHex)
+CocosSec.verifyRegisterRequest(req)
+CocosSec.verifySignInRequest(req)
+CocosSec.signUserInput(privHex, userText)
+CocosSec.verifyUserInput(pubHex, userText, signature)
+CocosSec.wrapSignedInput(username, pubHex, text, signature)
+CocosSec.verifySignedInput(packet)
+CocosSec.saveUserLocal(key, record)
+CocosSec.loadUserLocal(key)
 ```

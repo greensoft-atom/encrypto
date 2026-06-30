@@ -3,13 +3,13 @@
 function ecdsaKeyCharLen(curveName) {
   var params = getSECCurveByName(curveName || "secp384r1");
   if(params == null) return 0;
-  var qlen = params.getCurve().getQ().toString(16).length;
-  if((qlen % 2) != 0) qlen++;
-  return qlen;
+  var nbits = params.getN().bitLength();
+  return Math.ceil(nbits / 8) * 2;
 }
 
 function ecdsaPadHex(h, len) {
   h = String(h);
+  if(h.length > len) h = h.substring(h.length - len);
   while(h.length < len) h = "0" + h;
   return h;
 }
@@ -37,9 +37,9 @@ function ecdsaSignHash(hashHex, privHex, curveName) {
     k = ecdsaRandomScalar(n, rng);
     Q = G.multiply(k);
     r = Q.getX().toBigInteger().mod(n);
-  } while(r.compareTo(BigInteger.ZERO) <= 0);
-
-  s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
+    if(r.compareTo(BigInteger.ZERO) <= 0) continue;
+    s = k.modInverse(n).multiply(e.add(d.multiply(r))).mod(n);
+  } while(s.compareTo(BigInteger.ZERO) <= 0);
 
   return {
     rHex: ecdsaPadHex(r.toString(16), keylen),

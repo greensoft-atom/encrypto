@@ -66,9 +66,16 @@ id = S.CocosSec.createUserIdentity();
 var reg = S.CocosSec.buildRegisterRequest('alice', 'secret123', id, 'abc123nonce');
 assert(reg != null && reg.action === 'register', 'register request');
 assert(S.CocosSec.verifyRegisterRequest(reg), 'register verify failed');
-var regTampered = reg;
-regTampered.passwordHash = 'deadbeef';
-assert(!S.CocosSec.verifyRegisterRequest(regTampered), 'register should reject tamper');
+var tampered = {
+  action: reg.action,
+  username: reg.username,
+  passwordHash: 'deadbeef',
+  pubHex: reg.pubHex,
+  timestamp: reg.timestamp,
+  serverNonce: reg.serverNonce,
+  signature: reg.signature
+};
+assert(!S.CocosSec.verifyRegisterRequest(tampered), 'register should reject tamper');
 console.log('OK — passwordHash: ' + reg.passwordHash.substring(0, 16) + '...');
 
 console.log('=== Test 6: sign-in request ===');
