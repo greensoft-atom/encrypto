@@ -2,6 +2,8 @@
 
 Pure legacy JavaScript cryptography for **RSA-2048** and **ECDH (secp384r1 / P-384)** — no Node.js, no browser, no bundler.
 
+**New to crypto?** Start with **[BEGINNER-GUIDE.md](BEGINNER-GUIDE.md)** — concepts, exact values, step-by-step flows, and Node.js server setup.
+
 This fork removes hard dependencies on `window`, `navigator`, and `alert()`, adds the **secp384r1** curve, and provides a thin **`CEngineSec`** API for game code.
 
 ---
@@ -16,7 +18,7 @@ This fork removes hard dependencies on `window`, `navigator`, and `alert()`, add
 | Needs browser DOM / `window`? | **No** (optional hooks only if present) |
 | Needs native Android crypto? | **No** |
 | Pure JS math (BigInteger, RSA, EC)? | **Yes** — Tom Wu jsbn, ES3-style globals |
-| Files to ship in APK | 9 `.js` files (see load order below) |
+| Files to ship in APK | 11 `.js` files (see load order below) |
 
 ### What runs inside CEngine2d
 
@@ -53,11 +55,18 @@ node jsbn/test-smoke.js
 
 This loads all scripts in a **sandbox with no `window`, `navigator`, `alert`, or `cc`** — the same conditions as embedded CEngine2d JS — then checks:
 
-1. All files load without browser globals  
-2. ECDH P-384 shared secrets match  
-3. Same fixed seed → same keys (reproducible)  
-4. RSA-2048 encrypt/decrypt roundtrip  
-5. `hexToBytes` / `bytesToHex` utilities  
+1. Pure sandbox load (`CEngineSec` + `CocosSec` alias)  
+2. SHA-256 FIPS self-test (`abc` vector)  
+3. P-384 generator coordinates (NIST vector `k=1`)  
+4. P-384 scalar multiply `2×G` (NIST vector `k=2`)  
+5. ECDH P-384 shared secret agreement  
+6. ECDSA P-384 sign/verify, tamper rejection, `signatureHex` roundtrip  
+7. Register / sign-in / signed-input auth flows + tamper rejection  
+8. RSA-2048 encrypt/decrypt roundtrip  
+9. Invalid inputs return `null`/`false` (no throw)  
+10. Deterministic keys with fixed seed  
+
+**All 10 groups must pass before you ship.**
 
 ### Known test vectors (fixed 32-byte seed)
 
@@ -75,13 +84,83 @@ CEngineSec.seedRandom(TEST_SEED);
 
 | Output | Expected shape | Verified prefix (this fork) |
 |--------|----------------|----------------------------|
-| `ecdhGenerateKeyPair().pubHex` | 194 hex chars, starts with `04` | `04a820f1e100640dee1e5a492bda665bb98e24cc...` |
+| `ecdhGenerateKeyPair().pubHex` | 194 hex chars, starts with `04` | `04b9a3ebdde9a29ca951594d0ed3b65a831e28d3...` |
 | `ecdhGenerateKeyPair().privHex` | ~96–110 hex chars | (deterministic — re-run test to compare) |
 | `rsaGenerateKey().n` | 512 hex chars (2048-bit) | `9940dfd4823bc03760abe71699c66271f54960d2...` |
 | `rsaGenerateKey().e` | `10001` | always |
 | `rsaEncrypt(n, e, "hello CEngine2d")` | 512 hex chars | decrypts back to `"hello CEngine2d"` |
 
 If your build prints the same prefixes after `CEngineSec.seedRandom(TEST_SEED)`, the library is wired correctly.
+
+### NIST P-384 curve verification (independent of RNG)
+
+These constants are checked on every `test-smoke.js` run:
+
+| Check | Expected |
+|-------|----------|
+| Generator `G.x` (hex, 96 chars) | `aa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7` |
+| Generator `G.y` (hex, 96 chars) | `3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f` |
+| Point `2×G.x` | `08d999057ba3d2d969260045c55b97f089025959a6f434d651d207d19fb96e9e4fe0e86ebe0e64f85b96a9c75295df61` |
+| Point `2×G.y` | `8e80f1fa5b1b3cedb7bfe8dffd6dba74b275d875bc6cc43e904e505f256ab4255ffd43e94d39e22d61501e700a940e80` |
+
+Curve parameters match **jsrsasign `ECParameterDB`** for `secp384r1`.
+
+---
+
+## Requirements vs jsbn (confirmed)
+
+| Requirement | Status | Notes |
+|-------------|--------|-------|
+| Pure legacy JS (no Node/browser at runtime) | **OK** | 11 `.js` files, global scope |
+| RSA-2048 encrypt/decrypt | **OK** | PKCS#1 v1.5 type 2 |
+| EC P-384 ECDH | **OK** | `secp384r1`, uncompressed points |
+| EC P-384 ECDSA sign | **OK** | Client should sign |
+| EC P-384 ECDSA verify | **OK** | Prefer **server-side** verify (slow on device) |
+| Register / sign-in / signed input | **OK** | `CEngineSec.build*Request` helpers |
+| CEngine2d 1.5 / SpiderMonkey | **OK** | See runtime dependencies below |
+
+---
+
+## Do not mix jsbn auth with jsrsasign auth
+
+This repo also ships [`jsrsasign/`](../jsrsasign/). **Pick one stack per project.**
+
+| | **jsbn (`CEngineSec`)** | **jsrsasign (`CryptoManager`)** |
+|--|-------------------------|----------------------------------|
+| ECDSA hash | **SHA-256** then sign on P-384 | **SHA384withECDSA** |
+| Signature wire format | `{ rHex, sHex }` or 192-char hex concat | ASN.1 DER hex (jsrsasign) |
+| Interoperability | Server must use **jsbn protocol** below | Server must use jsrsasign docs |
+
+If your server verifies with `SHA384withECDSA`, **jsbn signatures will fail**. Match server code to the stack you ship in the APK.
+
+---
+
+## Runtime dependencies (CEngine2d)
+
+| API | Required globals | If missing |
+|-----|------------------|------------|
+| RSA / ECDH / ECDSA core | `Math`, `Date`, `Array`, `String`, `parseInt` | Always available in CEngine2d |
+| `gatherEntropyBytes()` | optional `cc.director`, `cc.sys` | Falls back to time + `Math.random()` |
+| `saveUserLocal()` / `loadUserLocal()` | `JSON`, `cc.sys.localStorage` | Returns `false` / `null` |
+| Network payloads | `JSON.stringify` (your HTTP layer) | Implement manual serialization |
+
+**Load scripts in global scope** (not inside a closure). Wrong load order → immediate `ReferenceError`.
+
+**Backward-compatible alias:** `CocosSec` is defined as an alias for `CEngineSec` at the end of `cengine-sec.js`. Prefer `CEngineSec` in new code.
+
+---
+
+## Pre-ship checklist
+
+- [ ] Run `node jsbn/test-smoke.js` — all 10 tests pass  
+- [ ] All **11 scripts** loaded in order before game logic  
+- [ ] Debug build: `CEngineSec.seedRandom(TEST_SEED)` → pub key prefix matches table above  
+- [ ] Server verifies auth with **SHA-256 + ECDSA P-384** (not SHA384withECDSA)  
+- [ ] Server sends fresh **nonce** (register/sign-in) and **challenge** (sign-in)  
+- [ ] Client seeds RNG with `serverNonce + clientEntropy` before `createUserIdentity()`  
+- [ ] Client **signs** only; server **verifies** (do not call `ecdsaVerify` every frame)  
+- [ ] Do **not** ship `test-smoke.js`, `*.html` demos, or Node-only files in APK  
+- [ ] HTTPS for all auth traffic (use jsrsasign `BizApiClient` or engine `XMLHttpRequest`)
 
 ---
 
@@ -112,15 +191,20 @@ YourGame/
         jsbn2.js
         prng4.js
         rng.js
+        sha256.js
         rsa.js
         rsa2.js
         ec.js
         sec.js
-        sha256.js
         ecdsa.js
-        CEngine2d-sec.js
+        cengine-sec.js
         example-auth-scene.js   ← register / sign-in / signed input patterns
 ```
+
+| File | Notes |
+|------|-------|
+| `test-smoke.js` | Dev-only verifier (10 test groups) — **do not ship in APK** |
+| `example-auth-scene.js` | Copy patterns from here; optional in APK |
 
 Optional utilities (not required for RSA/ECDH):
 
@@ -140,13 +224,13 @@ Scripts must be loaded **in this exact order** before you call any crypto API:
 2. jsbn2.js
 3. prng4.js
 4. rng.js
-5. rsa.js
-6. rsa2.js
-7. ec.js
-8. sec.js
-9. sha256.js
+5. sha256.js
+6. rsa.js
+7. rsa2.js
+8. ec.js
+9. sec.js
 10. ecdsa.js
-11. CEngine2d-sec.js
+11. cengine-sec.js
 ```
 
 ### CEngine2d-x JavaScript (JSB) example
@@ -161,13 +245,13 @@ If your project lists scripts in `project.json` or loads them in `main.js`:
     "src/crypto/jsbn/jsbn2.js",
     "src/crypto/jsbn/prng4.js",
     "src/crypto/jsbn/rng.js",
+    "src/crypto/jsbn/sha256.js",
     "src/crypto/jsbn/rsa.js",
     "src/crypto/jsbn/rsa2.js",
     "src/crypto/jsbn/ec.js",
     "src/crypto/jsbn/sec.js",
-    "src/crypto/jsbn/sha256.js",
     "src/crypto/jsbn/ecdsa.js",
-    "src/crypto/jsbn/CEngine2d-sec.js"
+    "src/crypto/jsbn/cengine-sec.js"
   ];
   for (var i = 0; i < scripts.length; i++) {
     require(scripts[i]);  // or your engine's equivalent script loader
@@ -226,7 +310,7 @@ After seeding with `TEST_SEED` above, this public key prefix confirms ECDH works
 CEngineSec.seedRandom(TEST_SEED);
 var kp = CEngineSec.ecdhGenerateKeyPair();
 cc.log(kp.pubHex.substring(0, 40));
-// expect: 04a820f1e100640dee1e5a492bda665bb98e24cc
+// expect: 04b9a3ebdde9a29ca951594d0ed3b65a831e28d3
 ```
 
 ---
@@ -356,12 +440,12 @@ For ECDH, embed the server’s long-term public key and only generate an **ephem
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Your CEngine2d scene (example-login-scene.js)            │
+│  Your CEngine2d scene (example-auth-scene.js)             │
 │  CEngineSec.rsaEncrypt / ecdhGenerateKeyPair / …          │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│  CEngine2d-sec.js   — RSA-2048 + ECDH P-384 helpers       │
+│  cengine-sec.js   — RSA-2048 + ECDH P-384 helpers       │
 └──────────────────────────┬──────────────────────────────┘
                            │
      ┌─────────────────────┼─────────────────────┐
@@ -393,7 +477,19 @@ See **`example-auth-scene.js`** for a complete skeleton.
 
 ## User auth: register, sign-in, signed input
 
-One **P-384 identity key pair** per user is used for both ECDH session keys and ECDSA signatures (SHA-256 hash + sign).
+One **P-384 identity key pair** per user is used for both ECDH session keys and ECDSA signatures (**SHA-256** hash, then ECDSA on `secp384r1`).
+
+### Canonical signed strings (server must rebuild exactly)
+
+| Action | Canonical string (`|` separated) |
+|--------|----------------------------------|
+| Register | `register\|{username}\|{passwordHash}\|{pubHex}\|{timestamp}\|{serverNonce}` |
+| Sign-in | `signin\|{username}\|{serverChallenge}\|{timestamp}\|{serverNonce}` |
+| User input | `input\|{userText}` |
+
+- `passwordHash` = `CEngineSec.hashPassword(username, password)` → `SHA256(username + "|" + password)`  
+- `timestamp` = milliseconds from `new Date().getTime()` (number; same value in JSON body and canonical string)  
+- Signature = ECDSA over `SHA256(canonicalString)`; wire as `{ rHex, sHex }` (96 hex chars each) or `signatureHex` (192 chars)
 
 ### Flow overview
 
@@ -428,7 +524,7 @@ var identity = CEngineSec.createUserIdentity();
 var req = CEngineSec.buildRegisterRequest("alice", "MyPassword123", identity, serverNonceHex);
 // req fields:
 //   username, passwordHash, pubHex, timestamp, serverNonce
-//   signature: { rHex, sHex }   signatureHex: rHex+sHex (384 hex chars)
+//   signature: { rHex, sHex }   signatureHex: rHex+sHex (192 hex chars)
 
 sendToServer(JSON.stringify(req));
 
@@ -473,22 +569,68 @@ var packet = CEngineSec.wrapSignedInput("alice", identity.pubHex, "move north", 
 sendToServer(JSON.stringify(packet));
 ```
 
-### 4. Verify on server (same CEngineSec API in your backend logic)
+### 4. Verify on server
+
+Rebuild the same canonical string, then verify. Example (Node.js with jsbn loaded the same way as `test-smoke.js`):
 
 ```javascript
-var req = JSON.parse(incomingBody);
+function verifyRegisterOnServer(body) {
+  var req = JSON.parse(body);
+  if (req.action !== "register") return false;
+  if (!isFreshNonce(req.serverNonce)) return false;  // your replay guard
 
-if (req.action === "register" && CEngineSec.verifyRegisterRequest(req)) {
-  saveUser(req.username, req.pubHex, req.passwordHash);
+  var canonical = [
+    "register", req.username, req.passwordHash,
+    req.pubHex, req.timestamp, req.serverNonce
+  ].join("|");
+
+  var sig = req.signature;
+  if (!sig && req.signatureHex) {
+    sig = ecdsaSigFromHex(req.signatureHex, "secp384r1");
+  }
+  return CEngineSec.ecdsaVerify(req.pubHex, canonical, sig);
 }
 
-if (req.action === "signin" && CEngineSec.verifySignInRequest(req)) {
-  openSession(req.username);
+function verifySignInOnServer(body, storedPubHex) {
+  var req = JSON.parse(body);
+  if (req.action !== "signin") return false;
+  if (req.pubHex !== storedPubHex) return false;  // must match registered key
+  if (!isFreshChallenge(req.serverChallenge, req.serverNonce)) return false;
+
+  var canonical = [
+    "signin", req.username, req.serverChallenge,
+    req.timestamp, req.serverNonce
+  ].join("|");
+
+  var sig = req.signature || ecdsaSigFromHex(req.signatureHex, "secp384r1");
+  return CEngineSec.ecdsaVerify(storedPubHex, canonical, sig);
 }
 
-if (CEngineSec.verifySignedInput(req)) {
-  handleCommand(req.username, req.text);
+function verifySignedInputOnServer(body, storedPubHex) {
+  var pkt = JSON.parse(body);
+  if (pkt.pubHex !== storedPubHex) return false;  // lookup username -> pubHex first
+  return CEngineSec.verifySignedInput(pkt);
 }
+```
+
+**Server responsibilities (not automatic in jsbn):**
+
+- Store `username → pubHex` at register; reject sign-in if `pubHex` differs  
+- Expire `serverNonce` and `serverChallenge` after one use or short TTL  
+- For signed input, resolve `username` / `pubHex` against registered keys  
+- Run `ecdsaVerify` on the server — not on the game client each frame  
+
+### 5. Full client module (copy from repo)
+
+See **`example-auth-scene.js`** for `UserAuth` with register, sign-in, and `signInput`:
+
+```javascript
+// After loading all 11 jsbn scripts:
+UserAuth.init();
+UserAuth.onServerHello(serverNonceHex);           // seeds RNG
+UserAuth.register("alice", "MyPassword123");      // first launch
+UserAuth.signIn("alice");                         // returning user (set SERVER_CHALLENGE first)
+UserAuth.signInput("alice", "move north");        // signed game command
 ```
 
 ### Low-level sign / verify (any string)
@@ -562,7 +704,7 @@ var pt = priv.decrypt(ct);
 | Field | Type | Example | Meaning |
 |-------|------|---------|---------|
 | `privHex` | hex string, ~96 digits | `1a2b3c...` | Secret scalar (keep private) |
-| `pubHex` | hex string, **194 chars** | `04a820f1e1...` | Uncompressed point: `04` + X + Y |
+| `pubHex` | hex string, **194 chars** | `04b9a3ebdde9a29ca951594d0ed3b65a831e28d3...` | Uncompressed point: `04` + X + Y |
 | `sharedX` from `ecdhSharedSecretX` | hex string, 96 chars | `65be3ce6116e...` | X coordinate of shared point |
 
 P-384 public keys are always **194 hex characters** (1 byte prefix + 48 bytes X + 48 bytes Y).
@@ -602,7 +744,7 @@ P-384 operations are slower than P-256. Expect hundreds of milliseconds per key 
 var LoginCrypto = {
   SERVER_RSA_N: "9940dfd4823bc03760abe71699c66271...", // your server modulus (512 hex chars)
   SERVER_RSA_E: "10001",
-  SERVER_ECDH_PUB: "04a820f1e100640dee1e...",            // server P-384 public point (194 hex chars)
+  SERVER_ECDH_PUB: "04b9a3ebdde9a29ca951594d0ed3b65a831e28d3...",  // server P-384 public point (194 hex chars)
 
   onServerHello: function(serverNonceHex) {
     // 1) Mix server + client entropy
@@ -711,6 +853,8 @@ API functions return `null` on failure. Always check return values.
 | RSA-2048 encrypt/decrypt | 10–100 ms |
 | ECDH P-384 keygen | 0.5–3 seconds |
 | ECDH P-384 shared secret | 0.3–2 seconds |
+| ECDSA P-384 **sign** (client) | 1–8 seconds |
+| ECDSA P-384 **verify** (client) | 5–30+ seconds — **avoid on device** |
 
 Recommendations:
 
@@ -738,18 +882,22 @@ jsbn uses **uncompressed** points (`04` + X + Y hex). Ensure your server expects
 
 ## Limitations
 
-- **ECDSA verify is slow on P-384** in pure JS — prefer server-side verify; client only signs.
-- **Pure JavaScript** — slower than native Android crypto.
-- **PKCS#1 RSA encrypt only** — no RSA-PSS signatures (use ECDSA for auth instead).
+- **ECDSA verify is slow on P-384** in pure JS — client signs, server verifies  
+- **SHA-256 + ECDSA**, not SHA384withECDSA — must match jsrsasign stack if you switch stacks  
+- **Pure JavaScript** — slower than native Android crypto  
+- **PKCS#1 RSA encrypt only** — no RSA-PSS (use ECDSA for auth)  
+- **Auth helpers do not prevent replay** — server must validate nonce/challenge/timestamp  
+- **`verifySignedInput` does not bind username to pubHex** — server must lookup registered key  
+- **HTML demos** (`*.html`) use `alert()` — do not ship in APK  
 
-For maximum security and speed on Android, use native crypto for key storage and heavy operations, and keep this library for logic that must run entirely in the JS game layer.
+For maximum security and speed on Android, use native crypto for key storage where possible; keep this library for logic that must run entirely in the JS game layer.
 
 ---
 
 ## Quick reference
 
 ```javascript
-// Constants
+// Global API: CEngineSec (alias: CocosSec)
 CEngineSec.RSA_BITS      // 2048
 CEngineSec.RSA_EXP       // "10001"
 CEngineSec.ECDH_CURVE    // "secp384r1"

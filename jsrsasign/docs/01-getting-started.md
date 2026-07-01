@@ -25,6 +25,7 @@ Everything must be **pure JavaScript** loaded by the engine:
 
 ```javascript
 // Typical CEngine2d 1.5 pattern (adjust to your project)
+require("src/crypto/cengine-bootstrap.js");   // mandatory on CEngine2d
 require("src/crypto/jsrsasign-all-min.js");
 require("src/crypto/CryptoManager.js");
 require("src/crypto/IdentityManager.js");

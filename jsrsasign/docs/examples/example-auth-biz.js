@@ -5,6 +5,7 @@
 var BizAuth = {
   init: function() {
     IdentityManager.init();
+    NetworkManager.initialize({ baseUrl: "https://api.example.com" });
   },
 
   onServerHello: function(serverNonceHex) {
@@ -22,11 +23,12 @@ var BizAuth = {
     }
 
     BizAuth._log("register ok, keyId: " + result.record.keyId.substring(0, 16) + "...");
-    BizAuth.sendToServer(result.request);
+    BizAuth.sendToServer("/api/register", result.request);
     return result.record;
   },
 
   onLoginTap: function(username, password) {
+    // In production, challenge comes from server via POST /api/login/password — not hardcoded.
     IdentityManager.onLoginChallenge("challenge_from_server");
 
     var result = IdentityManager.signIn(username, password);
@@ -36,7 +38,7 @@ var BizAuth = {
     }
 
     BizAuth._log("sign-in sig: " + result.request.signatureHex.substring(0, 16) + "...");
-    BizAuth.sendToServer(result.request);
+    BizAuth.sendToServer("/api/login/signin", result.request);
     return result;
   },
 
@@ -51,7 +53,7 @@ var BizAuth = {
       BizAuth._log("sign input failed");
       return null;
     }
-    BizAuth.sendToServer(packet);
+    BizAuth.sendToServer("/api/action", packet);
     return packet;
   },
 
@@ -59,9 +61,9 @@ var BizAuth = {
     CryptoManager.addTouchEntropy(x, y);
   },
 
-  sendToServer: function(payload) {
-    // Prefer BizApiClient / NetworkManager — see example-https-biz.js
-    NetworkManager.post("/api/action", payload, function(res) {
+  sendToServer: function(path, payload) {
+    // Prefer BizApiClient — see example-https-biz.js
+    NetworkManager.post(path || "/api/action", payload, function(res) {
       BizAuth._log(res.ok ? "sent ok" : "send failed: " + res.error);
     });
   },

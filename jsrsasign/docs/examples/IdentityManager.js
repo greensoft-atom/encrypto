@@ -72,26 +72,38 @@ var IdentityManager = {
   },
 
   _encryptPrivHex: function(privHex, username, password) {
-    // Minimal obfuscation — replace with AES-256 + PBKDF2 for production.
-    var key = CryptoManager.sha256(username + "|" + password);
-    var out = "";
-    var i, k;
-    for (i = 0; i < privHex.length; ++i) {
-      k = parseInt(key.charAt(i % key.length), 16);
-      out += ((parseInt(privHex.charAt(i), 16) ^ k) & 15).toString(16);
-    }
-    return out;
+    return CryptoManager.encryptPrivateHex(privHex, username + "|" + password);
   },
 
   _decryptPrivHex: function(privEnc, username, password) {
-    var key = CryptoManager.sha256(username + "|" + password);
-    var out = "";
-    var i, k;
-    for (i = 0; i < privEnc.length; ++i) {
-      k = parseInt(key.charAt(i % key.length), 16);
-      out += ((parseInt(privEnc.charAt(i), 16) ^ k) & 15).toString(16);
+    return CryptoManager.decryptPrivateHex(privEnc, username + "|" + password);
+  },
+
+  _verifyPrivMatchesPub: function(privHex, pubHex, curve) {
+    if (!privHex || !pubHex) {
+      return false;
     }
-    return out;
+    var curveName = curve || CryptoManager.DEFAULT_EC_CURVE;
+    var privHandle = {
+      type: "EC",
+      curve: curveName,
+      privHex: privHex,
+      pubHex: pubHex,
+      _prv: null,
+      _pub: null
+    };
+    var testMsg = "identity-key-check-v1";
+    var sigHex = CryptoManager.signECC(testMsg, privHandle);
+    if (!sigHex) {
+      return false;
+    }
+    var pubHandle = {
+      type: "EC",
+      curve: curveName,
+      pubHex: pubHex,
+      _pub: null
+    };
+    return CryptoManager.verifyECC(testMsg, sigHex, pubHandle);
   },
 
   recordToIdentity: function(record, password) {
@@ -104,6 +116,11 @@ var IdentityManager = {
         return null;
       }
       privHex = IdentityManager._decryptPrivHex(record.privEnc, record.username, password);
+      if (!IdentityManager._verifyPrivMatchesPub(
+        privHex, record.pubHex, record.curve || CryptoManager.DEFAULT_EC_CURVE
+      )) {
+        return null;
+      }
     } else if (record.privHex) {
       privHex = record.privHex;
     } else {
@@ -144,6 +161,15 @@ var IdentityManager = {
     IdentityManager._sessionIdentity = null;
   },
 
+  clearLocal: function() {
+    if (typeof cc === "undefined" || !cc.sys || !cc.sys.localStorage) {
+      return false;
+    }
+    cc.sys.localStorage.removeItem(IdentityManager.STORAGE_KEY);
+    IdentityManager.clearSession();
+    return true;
+  },
+
   saveLocal: function(record) {
     if (typeof cc === "undefined" || !cc.sys || !cc.sys.localStorage) {
       return false;
@@ -171,6 +197,9 @@ var IdentityManager = {
 
   buildRegisterRequest: function(username, password, identity) {
     if (!identity || !identity.privHex || !identity.pubHex) {
+      return null;
+    }
+    if (!IdentityManager.SERVER_NONCE) {
       return null;
     }
     var passwordHash = IdentityManager._passwordTransportHash(username, password);
@@ -219,7 +248,9 @@ var IdentityManager = {
       return null;
     }
     var record = IdentityManager.identityToRecord(username, identity, password);
-    IdentityManager.saveLocal(record);
+    if (!IdentityManager.saveLocal(record)) {
+      return null;
+    }
     return { record: record, request: req };
   },
 
@@ -227,6 +258,9 @@ var IdentityManager = {
 
   buildSignInRequest: function(username, identity) {
     if (!identity || !identity.privHex) {
+      return null;
+    }
+    if (!IdentityManager.SERVER_CHALLENGE || !IdentityManager.SERVER_NONCE) {
       return null;
     }
     var timestamp = new Date().getTime();

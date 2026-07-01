@@ -114,7 +114,8 @@ var BizApiClient = {
             ok: false,
             error: res.error || "Register rejected by server",
             code: res.code || "REGISTER_FAILED",
-            raw: res
+            raw: res,
+            localRecord: result.record
           });
           return;
         }
@@ -158,6 +159,17 @@ var BizApiClient = {
         }
         IdentityManager.onLoginChallenge(pwRes.data.challenge || pwRes.data.serverChallenge || "");
 
+        var challenge = IdentityManager.SERVER_CHALLENGE;
+        if (!challenge) {
+          callback({
+            ok: false,
+            error: "Login response missing challenge",
+            code: "LOGIN_NO_CHALLENGE",
+            raw: pwRes
+          });
+          return;
+        }
+
         var signInResult = IdentityManager.signIn(username, password);
         if (!signInResult) {
           callback({
@@ -170,6 +182,7 @@ var BizApiClient = {
 
         NetworkManager.post(BizApiClient.ENDPOINTS.loginSignin, signInResult.request, function(siRes) {
           if (!siRes.ok) {
+            IdentityManager.clearSession();
             callback({
               ok: false,
               error: siRes.error || "Sign-in rejected by server",

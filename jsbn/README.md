@@ -2,16 +2,35 @@
 
 The **jsbn** library is a fast, portable implementation of large-number math in pure JavaScript, enabling public-key cryptography and other applications on desktop and mobile browsers.
 
-## CEngine 1.5 Android (this fork)
+## CEngine2d 1.5 Android (this fork)
 
-This fork is adapted for **embedded JavaScript runtimes** (CEngine-x, SpiderMonkey, JavaScriptCore) with **no Node.js and no browser**:
+This fork is adapted for **embedded JavaScript runtimes** (CEngine2d-x, SpiderMonkey, JavaScriptCore) with **no Node.js and no browser**:
 
 - Removed hard dependencies on `navigator`, `window`, and `alert()`
-- Added **secp384r1** (NIST P-384) curve parameters
-- Added **`cengine-sec.js`** — high-level API for RSA-2048 and ECDH P-384
-- Added **`CEngine.md`** — full integration guide for CEngine 1.5 Android
+- Added **secp384r1** (NIST P-384) — parameters verified against NIST / jsrsasign vectors
+- Added **`sha256.js`**, **`ecdsa.js`**, **`cengine-sec.js`** — RSA-2048, ECDH, ECDSA, register/sign-in/signed-input
+- **`CEngineSec`** high-level API (`CocosSec` is a backward-compatible alias)
+- Verified by **`test-smoke.js`** (10 test groups, pure sandbox)
 
-**Start here:** [CEngine.md](CEngine.md)
+**Start here:** [BEGINNER-GUIDE.md](BEGINNER-GUIDE.md) (concepts + step-by-step + server) · [CEngine.md](CEngine.md) (integration reference)
+
+### Verify before ship
+
+```bash
+node jsbn/test-smoke.js
+```
+
+### Confirmed algorithms (jsbn stack)
+
+| Use case | Algorithm |
+|----------|-----------|
+| User identity keys | EC P-384 (`secp384r1`) |
+| Sign auth / user input | **SHA-256 + ECDSA P-384** (not SHA384withECDSA) |
+| Password on wire | `SHA256(username + "|" + password)` |
+| RSA transport | RSA-2048, PKCS#1 v1.5 encrypt |
+| ECDH session keys | P-384, shared X coordinate |
+
+Do **not** mix this auth protocol with the [`jsrsasign`](../jsrsasign/) stack in the same server API — see [CEngine.md — Do not mix jsbn auth with jsrsasign auth](CEngine.md#do-not-mix-jsbn-auth-with-jsrsasign-auth).
 
 ## Demos
 
@@ -55,6 +74,8 @@ This will print `b60c`.
 | `sha256.js` | SHA-256 hash (`hex_sha256`). |
 | `ecdsa.js` | ECDSA sign/verify for secp384r1. |
 | `cengine-sec.js` | High-level API: RSA-2048, ECDH, ECDSA, register/sign-in helpers. |
+| `example-auth-scene.js` | Client auth module (`UserAuth`) — see [CEngine.md](CEngine.md). |
+| `test-smoke.js` | Dev verifier — run `node jsbn/test-smoke.js`; do not ship. |
 
 ### Utilities
 
@@ -129,10 +150,10 @@ The speed tables contain detailed timing information for jsbn performing public-
 ### Fork (cengine-sec)
 
 - Runtime-safe: no required browser globals; `jsbn_error()` hook instead of `alert()`
-- Added `secp384r1` curve and `CocosSec` API
-- Deterministic `seedRandom(bytes)` for testing; `seedFromEnvironment()` for production
-- Verified with `test-smoke.js` (sandbox, no browser globals)
-- See [CEngine.md](CEngine.md) for usage
+- NIST P-384 curve + ECDH + ECDSA (SHA-256 digest) verified in `test-smoke.js`
+- `CEngineSec` API: RSA-2048, register, sign-in, signed user input
+- `CocosSec` alias for backward compatibility
+- See [CEngine.md](CEngine.md) for load order, auth protocol, pre-ship checklist
 
 ### Version 1.4 (7/1/2013)
 

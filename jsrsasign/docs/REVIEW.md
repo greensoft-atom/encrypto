@@ -17,6 +17,15 @@ Review performed against jsrsasign APIs, smoke tests, and consistency with [disc
 | 7 | **Low** | Docs said `register()` returns `record` directly | Corrected to `{ record, request }` |
 | 8 | **Low** | Architecture doc listed `encryptRSA`/`decryptRSA` from discussion but not implemented | Documented as intentionally omitted (jsrsasign 11+ Marvin advisory) |
 | 9 | **Medium** | `base64Decode()` called nonexistent `hex2utf8` | Switched to jsrsasign's `utf8tob64` / `b64toutf8` |
+| 10 | **Critical** | jsrsasign crashes without `navigator` on CEngine2d | Added `cengine-bootstrap.js`; mandatory first script |
+| 11 | **Critical** | Wrong password unlocked session (client/server mismatch) | `_verifyPrivMatchesPub()` after decrypt |
+| 12 | **High** | `register()` ignored `saveLocal()` failure | Returns null when storage unavailable |
+| 13 | **Medium** | `example-auth-biz.js` wrong POST paths | Fixed per-endpoint paths |
+| 14 | **High** | Sign-in HTTP failure left session unlocked | `BizApiClient` calls `clearSession()` on failure |
+| 15 | **High** | Empty challenge/nonce allowed sign-in request | Guard in `buildSignInRequest` + BizApiClient |
+| 16 | **Medium** | Register without hello built signed request | `buildRegisterRequest` requires `SERVER_NONCE` |
+| 17 | **Medium** | Server accepted actions without Bearer token | `ServerAuth.handleAction` requires token |
+| 18 | **Low** | No local identity rollback helper | Added `IdentityManager.clearLocal()` |
 
 ---
 
@@ -45,9 +54,11 @@ Review performed against jsrsasign APIs, smoke tests, and consistency with [disc
 
 4. **Password transport hash** — Client sends `sha256(username|password)` for registration; server must apply proper salted KDF for storage.
 
-5. **Node smoke test shims** — Requires `navigator.appName = "Netscape"` and mock `cc.sys.localStorage`; not needed on device.
+5. **Node smoke test shims** — Uses `cengine-bootstrap.js` instead of manual `navigator` mock; mock `cc.sys.localStorage` still required.
 
 6. **jsrsasign EOL** — End of support June 2026; pin version and keep facade for future library swap.
+
+7. **Deep audit (2026-07-01)** — See [AUDIT.md](./AUDIT.md) for CEngine runtime blockers, password-unlock fix, and production checklist.
 
 ---
 

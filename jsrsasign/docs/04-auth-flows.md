@@ -84,6 +84,10 @@ if (userExists(req.username)) reject();
 saveUser(req.username, req.passwordHash, req.pubHex, req.curve);
 ```
 
+Runnable server module: [examples/ServerAuth.js](./examples/ServerAuth.js)  
+Step-by-step Node walkthrough: [examples/example-server-verify.js](./examples/example-server-verify.js)  
+Full guide: [07-beginner-crypto-walkthrough.md](./07-beginner-crypto-walkthrough.md) Part 11
+
 ---
 
 ## Login flow

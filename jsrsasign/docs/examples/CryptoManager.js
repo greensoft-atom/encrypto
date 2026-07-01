@@ -10,6 +10,11 @@ var CryptoManager = {
   DEFAULT_RSA_BITS: 2048,
   DEFAULT_RSA_SIGN_ALG: "SHA256withRSA",
   PASSWORD_ITERATIONS: 10000,
+  PRIVENC_VERSION: "v2",
+  PRIVENC_AES_ALG: "aes256-CBC",
+  PRIVENC_KDF: "PBKDF2-HMAC-SHA256",
+  PRIVENC_SALT_BYTES: 16,
+  PRIVENC_IV_BYTES: 16,
 
   _initialized: false,
   _touchEntropy: [],
@@ -17,6 +22,18 @@ var CryptoManager = {
   initialize: function() {
     if (typeof KEYUTIL === "undefined" || typeof KJUR === "undefined") {
       throw "CryptoManager: load jsrsasign-all-min.js before CryptoManager.js";
+    }
+    if (typeof utf8tob64 !== "function" || typeof b64toutf8 !== "function") {
+      throw "CryptoManager: jsrsasign base64 helpers missing (utf8tob64/b64toutf8)";
+    }
+    if (typeof rng_seed_int !== "function") {
+      throw "CryptoManager: jsrsasign RNG helpers missing (rng_seed_int) — check bundle version";
+    }
+    if (typeof CryptoJS === "undefined" || !CryptoJS.PBKDF2) {
+      throw "CryptoManager: CryptoJS.PBKDF2 missing — check jsrsasign bundle";
+    }
+    if (!KJUR.crypto || !KJUR.crypto.Cipher) {
+      throw "CryptoManager: KJUR.crypto.Cipher missing — check jsrsasign bundle";
     }
     CryptoManager._initialized = true;
     return true;
@@ -452,6 +469,97 @@ var CryptoManager = {
       ? actualParts.slice(2).join(":")
       : actualParts.slice(1).join(":");
     return CryptoManager.secureCompare(expected, actualBody);
+  },
+
+  // --- Private key encryption at rest (AES-256-CBC + PBKDF2) ---
+
+  deriveKeyPBKDF2: function(passphrase, saltHex, iterations) {
+    CryptoManager._ensureInit();
+    var iters = iterations || CryptoManager.PASSWORD_ITERATIONS;
+    var salt = CryptoJS.enc.Hex.parse(String(saltHex).replace(/\s+/g, ""));
+    var dk = CryptoJS.PBKDF2(String(passphrase), salt, {
+      keySize: 256 / 32,
+      iterations: iters,
+      hasher: CryptoJS.algo.SHA256
+    });
+    return CryptoJS.enc.Hex.stringify(dk);
+  },
+
+  encryptAES256Hex: function(plainHex, keyHex, ivHex) {
+    CryptoManager._ensureInit();
+    return KJUR.crypto.Cipher.encrypt(
+      String(plainHex).replace(/\s+/g, ""),
+      String(keyHex).replace(/\s+/g, ""),
+      CryptoManager.PRIVENC_AES_ALG,
+      { iv: String(ivHex).replace(/\s+/g, "") }
+    );
+  },
+
+  decryptAES256Hex: function(cipherHex, keyHex, ivHex) {
+    CryptoManager._ensureInit();
+    return KJUR.crypto.Cipher.decrypt(
+      String(cipherHex).replace(/\s+/g, ""),
+      String(keyHex).replace(/\s+/g, ""),
+      CryptoManager.PRIVENC_AES_ALG,
+      { iv: String(ivHex).replace(/\s+/g, "") }
+    );
+  },
+
+  encryptPrivateHex: function(privHex, passphrase) {
+    CryptoManager._ensureInit();
+    var iters = CryptoManager.PASSWORD_ITERATIONS;
+    var salt = CryptoManager.generateSalt(CryptoManager.PRIVENC_SALT_BYTES);
+    var iv = CryptoManager.generateSalt(CryptoManager.PRIVENC_IV_BYTES);
+    var key = CryptoManager.deriveKeyPBKDF2(passphrase, salt, iters);
+    var ct = CryptoManager.encryptAES256Hex(privHex, key, iv);
+    var tag = CryptoManager.sha256(key + "|" + iv + "|" + ct + "|" + String(privHex).length);
+    return CryptoManager.PRIVENC_VERSION + "|" + String(iters) + "|" + salt + "|" + iv + "|" + ct + "|" + tag;
+  },
+
+  decryptPrivateHex: function(privEnc, passphrase) {
+    CryptoManager._ensureInit();
+    if (!privEnc) {
+      return null;
+    }
+    privEnc = String(privEnc);
+    if (privEnc.indexOf(CryptoManager.PRIVENC_VERSION + "|") === 0) {
+      var parts = privEnc.split("|");
+      if (parts.length < 6) {
+        return null;
+      }
+      var iters = parseInt(parts[1], 10);
+      var salt = parts[2];
+      var iv = parts[3];
+      var ct = parts[4];
+      var tag = parts[5];
+      if (!iters || !salt || !iv || !ct || !tag) {
+        return null;
+      }
+      var key = CryptoManager.deriveKeyPBKDF2(passphrase, salt, iters);
+      var plain;
+      try {
+        plain = CryptoManager.decryptAES256Hex(ct, key, iv);
+      } catch (e) {
+        return null;
+      }
+      var expectTag = CryptoManager.sha256(key + "|" + iv + "|" + ct + "|" + String(plain).length);
+      if (!CryptoManager.secureCompare(tag, expectTag)) {
+        return null;
+      }
+      return plain;
+    }
+    return CryptoManager._decryptPrivateHexLegacyXor(privEnc, passphrase);
+  },
+
+  _decryptPrivateHexLegacyXor: function(privEnc, passphrase) {
+    var key = CryptoManager.sha256(String(passphrase));
+    var out = "";
+    var i, k;
+    for (i = 0; i < privEnc.length; ++i) {
+      k = parseInt(key.charAt(i % key.length), 16);
+      out += ((parseInt(privEnc.charAt(i), 16) ^ k) & 15).toString(16);
+    }
+    return out;
   },
 
   // --- Convenience: sign/verify by algorithm name ---

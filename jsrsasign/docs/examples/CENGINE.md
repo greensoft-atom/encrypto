@@ -5,6 +5,7 @@
 ```text
 src/
   crypto/
+    cengine-bootstrap.js
     jsrsasign-all-min.js
     CryptoManager.js
     IdentityManager.js
@@ -23,6 +24,7 @@ Load **exactly in this order** (dependencies first):
 
 ```javascript
 // project.json or main.js bootstrap
+require("src/crypto/cengine-bootstrap.js");   // mandatory — jsrsasign needs navigator
 require("src/crypto/jsrsasign-all-min.js");
 require("src/crypto/CryptoManager.js");
 require("src/crypto/IdentityManager.js");
@@ -34,6 +36,7 @@ require("src/biz/example-https-biz.js");
 If your project uses `js.include`:
 
 ```javascript
+js.include("crypto/cengine-bootstrap.js");
 js.include("crypto/jsrsasign-all-min.js");
 js.include("crypto/CryptoManager.js");
 js.include("crypto/IdentityManager.js");
@@ -41,6 +44,7 @@ js.include("network/NetworkManager.js");
 js.include("network/BizApiClient.js");
 ```
 
+**Never** load `jsrsasign-all-min.js` without `cengine-bootstrap.js` first (CEngine2d often has no `navigator` global).  
 **Never** load `CryptoManager.js` before `jsrsasign-all-min.js`.
 
 ## File sizes (approximate)
@@ -140,6 +144,8 @@ From repo root:
 ```bash
 node jsrsasign/docs/examples/test-smoke.js
 node jsrsasign/docs/examples/test-network-smoke.js
+node jsrsasign/docs/examples/test-server-smoke.js
+node jsrsasign/docs/examples/example-server-verify.js
 ```
 
 Validates CryptoManager + IdentityManager without CEngine2d.
@@ -148,6 +154,7 @@ Validates CryptoManager + IdentityManager without CEngine2d.
 
 | Symptom | Fix |
 |---------|-----|
+| `navigator is not defined` on startup | Load `cengine-bootstrap.js` **before** jsrsasign-all-min.js |
 | `KEYUTIL is not defined` | Load jsrsasign-all-min.js first |
 | Keygen hangs | RSA 2048 is slow in pure JS; use EC P-384 for user keys |
 | Verify always false | Check canonical string matches server byte-for-byte |
@@ -158,5 +165,6 @@ Validates CryptoManager + IdentityManager without CEngine2d.
 ## See also
 
 - [../01-getting-started.md](../01-getting-started.md)
+- [../07-beginner-crypto-walkthrough.md](../07-beginner-crypto-walkthrough.md) — **full step-by-step for crypto beginners**
 - [../04-auth-flows.md](../04-auth-flows.md)
 - [../06-https-networking.md](../06-https-networking.md)

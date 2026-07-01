@@ -1,0 +1,17 @@
+{
+  "name": "cengine-sec-express-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal Express API for CEngine2d jsrsasign auth (ServerAuth)",
+  "main": "express-server.js",
+  "scripts": {
+    "start": "node express-server.js",
+    "test-client": "node test-express-client.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

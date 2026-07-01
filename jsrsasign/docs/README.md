@@ -11,12 +11,14 @@ These docs synthesize the architecture discussions in [discussion_01.md](./discu
 | # | Document | What you get |
 |---|----------|--------------|
 | 1 | [01-getting-started.md](./01-getting-started.md) | Runtime constraints, how to load the library, first hash/sign/verify |
+| **★** | **[07-beginner-crypto-walkthrough.md](./07-beginner-crypto-walkthrough.md)** | **Start here if new to crypto** — concepts, exact values, full call flows |
 | 2 | [02-jsrsasign-core-api.md](./02-jsrsasign-core-api.md) | Direct jsrsasign API cheat sheet with minimal examples |
 | 3 | [03-architecture.md](./03-architecture.md) | Layered design: Biz → IdentityManager → CryptoManager → jsrsasign |
 | 4 | [04-auth-flows.md](./04-auth-flows.md) | Registration, login, signed user actions — sequence diagrams and payloads |
 | 5 | [05-algorithms-and-security.md](./05-algorithms-and-security.md) | Algorithm choices, performance, pitfalls, library EOL notice |
 | 6 | [06-https-networking.md](./06-https-networking.md) | **HTTPS via XMLHttpRequest** — NetworkManager, BizApiClient, full auth flows |
 | — | [REVIEW.md](./REVIEW.md) | Review findings, fixes applied, known limitations |
+| — | [AUDIT.md](./AUDIT.md) | **Deep correctness audit** — runtime blockers, version pin, production checklist |
 
 ---
 
@@ -26,12 +28,19 @@ All files are **ES5-compatible** (no `let`, `const`, arrow functions, or `requir
 
 ```
 docs/examples/
+├── cengine-bootstrap.js     ← Load BEFORE jsrsasign (navigator shim)
 ├── CryptoManager.js         ← Public crypto facade (wraps jsrsasign)
 ├── IdentityManager.js       ← User registration / login / signed input
 ├── NetworkManager.js        ← HTTPS client (XMLHttpRequest, no Java code)
 ├── BizApiClient.js          ← Register / login / actions over HTTPS
 ├── example-auth-biz.js      ← Crypto-only biz integration pattern
 ├── example-https-biz.js     ← Full HTTPS + crypto biz integration
+├── example-server-verify.js ← Server-side verify walkthrough (Node)
+├── ServerAuth.js            ← Server handlers (hello, register, login, action)
+├── server/                  ← Express API server (Node backend)
+│   ├── express-server.js
+│   ├── test-express-client.js
+│   └── README.md
 ├── network-probe.js         ← Minimal HTTPS connectivity test
 ├── CENGINE.md               ← Script load order and project layout
 ├── test-smoke.js            ← Node smoke test (CryptoManager)

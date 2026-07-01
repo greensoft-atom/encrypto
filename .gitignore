@@ -1,0 +1,85 @@
+# Dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime / process
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Test / coverage
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# Build output
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+.turbo/
+.next/
+.nuxt/
+.svelte-kit/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# Optional npm cache
+.npm/
+.eslintcache
+.stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# Package manager (keep lockfiles; ignore local store)
+.pnp.*
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Cursor
+.cursor/

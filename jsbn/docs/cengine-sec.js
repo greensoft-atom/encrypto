@@ -79,10 +79,13 @@ var CEngineSec = {
 
   hexToBytes: function(hex) {
     var out = [];
-    var i;
+    var i, b;
     hex = String(hex).replace(/\s+/g, "");
+    if(hex.length === 0 || (hex.length % 2) !== 0) return out;
     for(i = 0; i < hex.length; i += 2) {
-      out.push(parseInt(hex.substr(i, 2), 16));
+      b = parseInt(hex.substr(i, 2), 16);
+      if(isNaN(b)) return [];
+      out.push(b);
     }
     return out;
   },
@@ -247,12 +250,14 @@ var CEngineSec = {
   },
 
   saveUserLocal: function(storageKey, record) {
+    if(typeof JSON === "undefined") return false;
     if(typeof cc == "undefined" || !cc.sys || !cc.sys.localStorage) return false;
     cc.sys.localStorage.setItem(storageKey, JSON.stringify(record));
     return true;
   },
 
   loadUserLocal: function(storageKey) {
+    if(typeof JSON === "undefined") return null;
     if(typeof cc == "undefined" || !cc.sys || !cc.sys.localStorage) return null;
     var raw = cc.sys.localStorage.getItem(storageKey);
     if(raw == null || raw == "") return null;
@@ -376,3 +381,6 @@ var CEngineSec = {
     return CEngineSec.verifyUserInput(packet.pubHex, packet.text, sig);
   }
 };
+
+// Backward-compatible alias (older examples used CocosSec).
+var CocosSec = CEngineSec;

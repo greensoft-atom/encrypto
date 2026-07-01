@@ -18,7 +18,6 @@ function loadSandbox() {
     String: String,
     parseInt: parseInt,
     JSON: JSON,
-    navigator: { appName: "Netscape" },
     cc: {
       sys: {
         localStorage: {
@@ -29,6 +28,7 @@ function loadSandbox() {
     }
   };
   vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(examplesDir, "cengine-bootstrap.js"), "utf8"), sandbox, { filename: "cengine-bootstrap.js" });
   vm.runInContext(fs.readFileSync(jsrsasignPath, "utf8"), sandbox, { filename: "jsrsasign-all-min.js" });
   vm.runInContext(fs.readFileSync(path.join(examplesDir, "CryptoManager.js"), "utf8"), sandbox, { filename: "CryptoManager.js" });
   vm.runInContext(fs.readFileSync(path.join(examplesDir, "IdentityManager.js"), "utf8"), sandbox, { filename: "IdentityManager.js" });
@@ -99,6 +99,7 @@ IM.onServerHello("servernonce00112233445566778899aabbccddeeff");
 var regResult = IM.register("alice", "password123");
 assert(regResult && regResult.request.action === "register", "register request");
 assert(regResult.record.privEnc, "privEnc stored");
+assert(String(regResult.record.privEnc).indexOf("v2|") === 0, "privEnc v2 AES format");
 assert(!regResult.record.privHex, "no plaintext privHex when password given");
 assert(IM.verifyRegisterRequest(regResult.request), "register verify");
 var badReg = regResult.request;
@@ -135,6 +136,54 @@ var r2 = CM.randomHex(16);
 assert(typeof r1 === "string" && r1.length === 32, "random hex length");
 var b64 = CM.base64Encode("cengine-sec");
 assert(CM.base64Decode(b64) === "cengine-sec", "base64 roundtrip");
+console.log("OK");
+
+console.log("=== Test 11: wrong password rejected ===");
+IM.clearSession();
+var loginBad = IM.signIn("alice", "wrong-password");
+assert(loginBad === null, "wrong password signIn returns null");
+assert(IM._sessionIdentity === null, "no session after wrong password");
+console.log("OK");
+
+console.log("=== Test 12: SHA384withECDSA default alg ===");
+CM.seedFromEnvironment("feedface");
+var ec2 = CM.generateECC("secp384r1");
+var m384 = "sha384-canonical-test";
+var sig384 = CM.signECC(m384, ec2);
+assert(sig384 && sig384.substr(0, 2) === "30", "default ec sig der");
+assert(CM.verifyECC(m384, sig384, { type: "EC", pubHex: ec2.pubHex, curve: "secp384r1" }), "pubHex-only verify");
+console.log("OK");
+
+console.log("=== Test 13: bootstrap shim (no pre-set navigator) ===");
+var S2 = (function() {
+  var store2 = {};
+  var sb = {
+    console: console, Date: Date, Math: Math, Array: Array, String: String,
+    parseInt: parseInt, JSON: JSON,
+    cc: { sys: { localStorage: { setItem: function(k,v){store2[k]=v;}, getItem: function(k){return store2[k]||null;} } } }
+  };
+  vm.createContext(sb);
+  vm.runInContext(fs.readFileSync(path.join(examplesDir, "cengine-bootstrap.js"), "utf8"), sb);
+  vm.runInContext(fs.readFileSync(jsrsasignPath, "utf8"), sb);
+  assert(typeof sb.navigator !== "undefined", "bootstrap created navigator");
+  assert(typeof sb.KEYUTIL !== "undefined", "jsrsasign loaded after bootstrap");
+  return sb;
+})();
+console.log("OK");
+
+console.log("=== Test 14: register without server hello blocked ===");
+IM.SERVER_NONCE = "";
+var idNoNonce = IM.createIdentity();
+var reqNoNonce = IM.buildRegisterRequest("bob", "pw", idNoNonce);
+assert(reqNoNonce === null, "register request blocked without serverNonce");
+console.log("OK");
+
+console.log("=== Test 15: AES privEnc roundtrip ===");
+var privSample = CM.randomHex(48);
+var enc = CM.encryptPrivateHex(privSample, "user|pass");
+var dec = CM.decryptPrivateHex(enc, "user|pass");
+assert(dec === privSample, "AES privEnc roundtrip");
+assert(CM.decryptPrivateHex(enc, "user|wrong") === null, "wrong passphrase fails");
 console.log("OK");
 
 console.log("");

@@ -177,8 +177,8 @@ Sits above `CryptoManager` and understands **users**:
 ```text
 IdentityManager
  ├── register(username, password)
- ├── login(username, password)
- ├── logout()
+ ├── signIn(username, password)
+ ├── logout() / clearSession()
  ├── signUserAction(actionObject)
  ├── verifyUserAction(packet)      // server-side
  ├── getSession()
